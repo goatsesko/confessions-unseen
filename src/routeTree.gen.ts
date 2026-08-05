@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ComposeRouteImport } from './routes/compose'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as CommunitiesIndexRouteImport } from './routes/communities.index'
 import { Route as CommunitiesSlugRouteImport } from './routes/communities.$slug'
 import { Route as ConfessionNumberRouteImport } from './routes/confession.$number'
@@ -20,9 +22,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ComposeRoute = ComposeRouteImport.update({
   id: '/compose',
   path: '/compose',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommunitiesIndexRoute = CommunitiesIndexRouteImport.update({
@@ -43,14 +55,18 @@ const ConfessionNumberRoute = ConfessionNumberRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/compose': typeof ComposeRoute
+  '/profile': typeof ProfileRoute
   '/communities/$slug': typeof CommunitiesSlugRoute
   '/confession/$number': typeof ConfessionNumberRoute
   '/communities/': typeof CommunitiesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/compose': typeof ComposeRoute
+  '/profile': typeof ProfileRoute
   '/communities/$slug': typeof CommunitiesSlugRoute
   '/confession/$number': typeof ConfessionNumberRoute
   '/communities': typeof CommunitiesIndexRoute
@@ -58,7 +74,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/compose': typeof ComposeRoute
+  '/profile': typeof ProfileRoute
   '/communities/$slug': typeof CommunitiesSlugRoute
   '/confession/$number': typeof ConfessionNumberRoute
   '/communities/': typeof CommunitiesIndexRoute
@@ -67,21 +85,27 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/compose'
+    | '/profile'
     | '/communities/$slug'
     | '/confession/$number'
     | '/communities/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
     | '/compose'
+    | '/profile'
     | '/communities/$slug'
     | '/confession/$number'
     | '/communities'
   id:
     | '__root__'
     | '/'
+    | '/auth'
     | '/compose'
+    | '/profile'
     | '/communities/$slug'
     | '/confession/$number'
     | '/communities/'
@@ -89,7 +113,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRoute
   ComposeRoute: typeof ComposeRoute
+  ProfileRoute: typeof ProfileRoute
   CommunitiesSlugRoute: typeof CommunitiesSlugRoute
   ConfessionNumberRoute: typeof ConfessionNumberRoute
   CommunitiesIndexRoute: typeof CommunitiesIndexRoute
@@ -104,11 +130,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/compose': {
       id: '/compose'
       path: '/compose'
       fullPath: '/compose'
       preLoaderRoute: typeof ComposeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/communities/': {
@@ -137,7 +177,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthRoute: AuthRoute,
   ComposeRoute: ComposeRoute,
+  ProfileRoute: ProfileRoute,
   CommunitiesSlugRoute: CommunitiesSlugRoute,
   ConfessionNumberRoute: ConfessionNumberRoute,
   CommunitiesIndexRoute: CommunitiesIndexRoute,
