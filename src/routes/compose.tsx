@@ -9,7 +9,7 @@ import { CATEGORIES, extractParentNumber, maskIdentifiers } from "@/lib/confessi
 import { createConfession, fetchCommunities } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-type ComposeSearch = { addTo?: number };
+type ComposeSearch = { addTo?: number | undefined };
 
 export const Route = createFileRoute("/compose")({
   validateSearch: (search: Record<string, unknown>): ComposeSearch => ({
