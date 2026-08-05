@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ComposeRouteImport } from './routes/compose'
+import { Route as CommunitiesIndexRouteImport } from './routes/communities.index'
+import { Route as CommunitiesSlugRouteImport } from './routes/communities.$slug'
 import { Route as ConfessionNumberRouteImport } from './routes/confession.$number'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +25,16 @@ const ComposeRoute = ComposeRouteImport.update({
   path: '/compose',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CommunitiesIndexRoute = CommunitiesIndexRouteImport.update({
+  id: '/communities/',
+  path: '/communities/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommunitiesSlugRoute = CommunitiesSlugRouteImport.update({
+  id: '/communities/$slug',
+  path: '/communities/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConfessionNumberRoute = ConfessionNumberRouteImport.update({
   id: '/confession/$number',
   path: '/confession/$number',
@@ -32,31 +44,55 @@ const ConfessionNumberRoute = ConfessionNumberRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/compose': typeof ComposeRoute
+  '/communities/$slug': typeof CommunitiesSlugRoute
   '/confession/$number': typeof ConfessionNumberRoute
+  '/communities/': typeof CommunitiesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/compose': typeof ComposeRoute
+  '/communities/$slug': typeof CommunitiesSlugRoute
   '/confession/$number': typeof ConfessionNumberRoute
+  '/communities': typeof CommunitiesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/compose': typeof ComposeRoute
+  '/communities/$slug': typeof CommunitiesSlugRoute
   '/confession/$number': typeof ConfessionNumberRoute
+  '/communities/': typeof CommunitiesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/compose' | '/confession/$number'
+  fullPaths:
+    | '/'
+    | '/compose'
+    | '/communities/$slug'
+    | '/confession/$number'
+    | '/communities/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/compose' | '/confession/$number'
-  id: '__root__' | '/' | '/compose' | '/confession/$number'
+  to:
+    | '/'
+    | '/compose'
+    | '/communities/$slug'
+    | '/confession/$number'
+    | '/communities'
+  id:
+    | '__root__'
+    | '/'
+    | '/compose'
+    | '/communities/$slug'
+    | '/confession/$number'
+    | '/communities/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ComposeRoute: typeof ComposeRoute
+  CommunitiesSlugRoute: typeof CommunitiesSlugRoute
   ConfessionNumberRoute: typeof ConfessionNumberRoute
+  CommunitiesIndexRoute: typeof CommunitiesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -75,6 +111,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ComposeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/communities/': {
+      id: '/communities/'
+      path: '/communities'
+      fullPath: '/communities/'
+      preLoaderRoute: typeof CommunitiesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/communities/$slug': {
+      id: '/communities/$slug'
+      path: '/communities/$slug'
+      fullPath: '/communities/$slug'
+      preLoaderRoute: typeof CommunitiesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/confession/$number': {
       id: '/confession/$number'
       path: '/confession/$number'
@@ -88,7 +138,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ComposeRoute: ComposeRoute,
+  CommunitiesSlugRoute: CommunitiesSlugRoute,
   ConfessionNumberRoute: ConfessionNumberRoute,
+  CommunitiesIndexRoute: CommunitiesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
