@@ -12,7 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ComposeRouteImport } from './routes/compose'
+import { Route as InboxRouteImport } from './routes/inbox'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as CommunitiesIndexRouteImport } from './routes/communities.index'
 import { Route as CommunitiesSlugRouteImport } from './routes/communities.$slug'
 import { Route as ConfessionNumberRouteImport } from './routes/confession.$number'
@@ -32,9 +35,24 @@ const ComposeRoute = ComposeRouteImport.update({
   path: '/compose',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InboxRoute = InboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommunitiesIndexRoute = CommunitiesIndexRouteImport.update({
@@ -57,7 +75,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/compose': typeof ComposeRoute
+  '/inbox': typeof InboxRoute
+  '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
+  '/search': typeof SearchRoute
   '/communities/$slug': typeof CommunitiesSlugRoute
   '/confession/$number': typeof ConfessionNumberRoute
   '/communities/': typeof CommunitiesIndexRoute
@@ -66,7 +87,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/compose': typeof ComposeRoute
+  '/inbox': typeof InboxRoute
+  '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
+  '/search': typeof SearchRoute
   '/communities/$slug': typeof CommunitiesSlugRoute
   '/confession/$number': typeof ConfessionNumberRoute
   '/communities': typeof CommunitiesIndexRoute
@@ -76,7 +100,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/compose': typeof ComposeRoute
+  '/inbox': typeof InboxRoute
+  '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
+  '/search': typeof SearchRoute
   '/communities/$slug': typeof CommunitiesSlugRoute
   '/confession/$number': typeof ConfessionNumberRoute
   '/communities/': typeof CommunitiesIndexRoute
@@ -87,7 +114,10 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/compose'
+    | '/inbox'
+    | '/notifications'
     | '/profile'
+    | '/search'
     | '/communities/$slug'
     | '/confession/$number'
     | '/communities/'
@@ -96,7 +126,10 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/compose'
+    | '/inbox'
+    | '/notifications'
     | '/profile'
+    | '/search'
     | '/communities/$slug'
     | '/confession/$number'
     | '/communities'
@@ -105,7 +138,10 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/compose'
+    | '/inbox'
+    | '/notifications'
     | '/profile'
+    | '/search'
     | '/communities/$slug'
     | '/confession/$number'
     | '/communities/'
@@ -115,7 +151,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   ComposeRoute: typeof ComposeRoute
+  InboxRoute: typeof InboxRoute
+  NotificationsRoute: typeof NotificationsRoute
   ProfileRoute: typeof ProfileRoute
+  SearchRoute: typeof SearchRoute
   CommunitiesSlugRoute: typeof CommunitiesSlugRoute
   ConfessionNumberRoute: typeof ConfessionNumberRoute
   CommunitiesIndexRoute: typeof CommunitiesIndexRoute
@@ -144,11 +183,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ComposeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/inbox': {
+      id: '/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof InboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/communities/': {
@@ -179,7 +239,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   ComposeRoute: ComposeRoute,
+  InboxRoute: InboxRoute,
+  NotificationsRoute: NotificationsRoute,
   ProfileRoute: ProfileRoute,
+  SearchRoute: SearchRoute,
   CommunitiesSlugRoute: CommunitiesSlugRoute,
   ConfessionNumberRoute: ConfessionNumberRoute,
   CommunitiesIndexRoute: CommunitiesIndexRoute,
