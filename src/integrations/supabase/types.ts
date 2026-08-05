@@ -14,7 +14,242 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      comment_likes: {
+        Row: {
+          comment_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_likes_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comments: {
+        Row: {
+          body: string
+          confession_id: string
+          created_at: string
+          depth: number
+          id: string
+          parent_id: string | null
+          user_id: string
+        }
+        Insert: {
+          body: string
+          confession_id: string
+          created_at?: string
+          depth?: number
+          id?: string
+          parent_id?: string | null
+          user_id: string
+        }
+        Update: {
+          body?: string
+          confession_id?: string
+          created_at?: string
+          depth?: number
+          id?: string
+          parent_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_confession_id_fkey"
+            columns: ["confession_id"]
+            isOneToOne: false
+            referencedRelation: "confessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      communities: {
+        Row: {
+          created_at: string
+          description: string
+          emoji: string
+          id: string
+          name: string
+          rules: string[]
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          emoji?: string
+          id?: string
+          name: string
+          rules?: string[]
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          emoji?: string
+          id?: string
+          name?: string
+          rules?: string[]
+          slug?: string
+        }
+        Relationships: []
+      }
+      community_members: {
+        Row: {
+          community_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          community_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          community_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_members_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      confession_reactions: {
+        Row: {
+          confession_id: string
+          created_at: string
+          device_key: string
+          id: string
+          kind: string
+        }
+        Insert: {
+          confession_id: string
+          created_at?: string
+          device_key: string
+          id?: string
+          kind: string
+        }
+        Update: {
+          confession_id?: string
+          created_at?: string
+          device_key?: string
+          id?: string
+          kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "confession_reactions_confession_id_fkey"
+            columns: ["confession_id"]
+            isOneToOne: false
+            referencedRelation: "confessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      confessions: {
+        Row: {
+          body: string
+          category: string
+          community_id: string | null
+          created_at: string
+          id: string
+          is_featured: boolean
+          is_pinned: boolean
+          number: number
+          parent_number: number | null
+          views: number
+        }
+        Insert: {
+          body: string
+          category: string
+          community_id?: string | null
+          created_at?: string
+          id?: string
+          is_featured?: boolean
+          is_pinned?: boolean
+          number?: number
+          parent_number?: number | null
+          views?: number
+        }
+        Update: {
+          body?: string
+          category?: string
+          community_id?: string | null
+          created_at?: string
+          id?: string
+          is_featured?: boolean
+          is_pinned?: boolean
+          number?: number
+          parent_number?: number | null
+          views?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "confessions_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          id: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          id: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          id?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
