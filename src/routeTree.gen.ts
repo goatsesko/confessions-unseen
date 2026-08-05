@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ComposeRouteImport } from './routes/compose'
+import { Route as ConfessionNumberRouteImport } from './routes/confession.$number'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +23,40 @@ const ComposeRoute = ComposeRouteImport.update({
   path: '/compose',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConfessionNumberRoute = ConfessionNumberRouteImport.update({
+  id: '/confession/$number',
+  path: '/confession/$number',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/compose': typeof ComposeRoute
+  '/confession/$number': typeof ConfessionNumberRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/compose': typeof ComposeRoute
+  '/confession/$number': typeof ConfessionNumberRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/compose': typeof ComposeRoute
+  '/confession/$number': typeof ConfessionNumberRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/compose'
+  fullPaths: '/' | '/compose' | '/confession/$number'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/compose'
-  id: '__root__' | '/' | '/compose'
+  to: '/' | '/compose' | '/confession/$number'
+  id: '__root__' | '/' | '/compose' | '/confession/$number'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ComposeRoute: typeof ComposeRoute
+  ConfessionNumberRoute: typeof ConfessionNumberRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ComposeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/confession/$number': {
+      id: '/confession/$number'
+      path: '/confession/$number'
+      fullPath: '/confession/$number'
+      preLoaderRoute: typeof ConfessionNumberRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ComposeRoute: ComposeRoute,
+  ConfessionNumberRoute: ConfessionNumberRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
