@@ -6,15 +6,8 @@ import { toast } from "sonner";
 import { addComment, fetchComments, toggleCommentLike, type CommentNode } from "@/lib/api";
 import { timeAgo } from "@/lib/confessions";
 import { useAuth } from "@/hooks/useAuth";
+import { UserAvatar } from "@/components/UserAvatar";
 import { cn } from "@/lib/utils";
-
-function Avatar({ name }: { name: string }) {
-  return (
-    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-elevated text-xs font-bold uppercase text-primary">
-      {name.slice(0, 2)}
-    </div>
-  );
-}
 
 export function CommentThread({ confessionId }: { confessionId: string }) {
   const { user, profile } = useAuth();
@@ -87,7 +80,7 @@ export function CommentThread({ confessionId }: { confessionId: string }) {
           )}
           {user ? (
             <div className="flex items-center gap-2">
-              <Avatar name={profile?.username ?? "me"} />
+              <UserAvatar username={profile?.username ?? "me"} avatarPath={profile?.avatar_url} />
               <input
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
@@ -134,10 +127,14 @@ function CommentItem({
   return (
     <div className={cn(node.depth > 0 && "ml-8 border-l border-border pl-3")}>
       <div className="flex gap-3">
-        <Avatar name={node.username} />
+        <Link to="/u/$username" params={{ username: node.username }} className="tap">
+          <UserAvatar username={node.username} avatarPath={node.avatar_url} />
+        </Link>
         <div className="min-w-0 flex-1">
           <p className="text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">@{node.username}</span> · {timeAgo(node.created_at)}
+            <Link to="/u/$username" params={{ username: node.username }} className="font-semibold text-foreground">
+              @{node.username}
+            </Link> · {timeAgo(node.created_at)}
           </p>
           <p className="mt-1 text-sm leading-relaxed">{node.body}</p>
           <div className="mt-1.5 flex items-center gap-4 text-xs text-muted-foreground">
