@@ -2,7 +2,15 @@ import { useEffect, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-export type Profile = { id: string; username: string; bio: string | null; avatar_url: string | null };
+export type Profile = {
+  id: string;
+  username: string;
+  bio: string | null;
+  avatar_url: string | null;
+  display_name: string | null;
+  location: string | null;
+  open_to_chat: boolean;
+};
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -29,7 +37,7 @@ export function useAuth() {
     let cancelled = false;
     supabase
       .from("profiles")
-      .select("id, username, bio, avatar_url")
+      .select("id, username, bio, avatar_url, display_name, location, open_to_chat")
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => {
