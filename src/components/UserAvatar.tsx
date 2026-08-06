@@ -15,9 +15,9 @@ export function UserAvatar({
   className,
 }: {
   username: string;
-  avatarPath?: string | null;
-  size?: keyof typeof SIZES;
-  className?: string;
+  avatarPath?: string | null | undefined;
+  size?: keyof typeof SIZES | undefined;
+  className?: string | undefined;
 }) {
   const [src, setSrc] = useState<string | null>(null);
 

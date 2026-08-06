@@ -179,7 +179,7 @@ export async function sendMessage(input: {
   conversationId: string;
   senderId: string;
   body: string;
-  imageUrl?: string | null;
+  imageUrl?: string | null | undefined;
 }) {
   const { error } = await supabase.from("messages").insert({
     conversation_id: input.conversationId,
