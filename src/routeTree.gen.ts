@@ -16,9 +16,11 @@ import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as ChatIdRouteImport } from './routes/chat.$id'
 import { Route as CommunitiesIndexRouteImport } from './routes/communities.index'
 import { Route as CommunitiesSlugRouteImport } from './routes/communities.$slug'
 import { Route as ConfessionNumberRouteImport } from './routes/confession.$number'
+import { Route as UUsernameRouteImport } from './routes/u.$username'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -55,6 +57,11 @@ const SearchRoute = SearchRouteImport.update({
   path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChatIdRoute = ChatIdRouteImport.update({
+  id: '/chat/$id',
+  path: '/chat/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CommunitiesIndexRoute = CommunitiesIndexRouteImport.update({
   id: '/communities/',
   path: '/communities/',
@@ -70,6 +77,11 @@ const ConfessionNumberRoute = ConfessionNumberRouteImport.update({
   path: '/confession/$number',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UUsernameRoute = UUsernameRouteImport.update({
+  id: '/u/$username',
+  path: '/u/$username',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -79,8 +91,10 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/search': typeof SearchRoute
+  '/chat/$id': typeof ChatIdRoute
   '/communities/$slug': typeof CommunitiesSlugRoute
   '/confession/$number': typeof ConfessionNumberRoute
+  '/u/$username': typeof UUsernameRoute
   '/communities/': typeof CommunitiesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -91,8 +105,10 @@ export interface FileRoutesByTo {
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/search': typeof SearchRoute
+  '/chat/$id': typeof ChatIdRoute
   '/communities/$slug': typeof CommunitiesSlugRoute
   '/confession/$number': typeof ConfessionNumberRoute
+  '/u/$username': typeof UUsernameRoute
   '/communities': typeof CommunitiesIndexRoute
 }
 export interface FileRoutesById {
@@ -104,8 +120,10 @@ export interface FileRoutesById {
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/search': typeof SearchRoute
+  '/chat/$id': typeof ChatIdRoute
   '/communities/$slug': typeof CommunitiesSlugRoute
   '/confession/$number': typeof ConfessionNumberRoute
+  '/u/$username': typeof UUsernameRoute
   '/communities/': typeof CommunitiesIndexRoute
 }
 export interface FileRouteTypes {
@@ -118,8 +136,10 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/profile'
     | '/search'
+    | '/chat/$id'
     | '/communities/$slug'
     | '/confession/$number'
+    | '/u/$username'
     | '/communities/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -130,8 +150,10 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/profile'
     | '/search'
+    | '/chat/$id'
     | '/communities/$slug'
     | '/confession/$number'
+    | '/u/$username'
     | '/communities'
   id:
     | '__root__'
@@ -142,8 +164,10 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/profile'
     | '/search'
+    | '/chat/$id'
     | '/communities/$slug'
     | '/confession/$number'
+    | '/u/$username'
     | '/communities/'
   fileRoutesById: FileRoutesById
 }
@@ -155,8 +179,10 @@ export interface RootRouteChildren {
   NotificationsRoute: typeof NotificationsRoute
   ProfileRoute: typeof ProfileRoute
   SearchRoute: typeof SearchRoute
+  ChatIdRoute: typeof ChatIdRoute
   CommunitiesSlugRoute: typeof CommunitiesSlugRoute
   ConfessionNumberRoute: typeof ConfessionNumberRoute
+  UUsernameRoute: typeof UUsernameRoute
   CommunitiesIndexRoute: typeof CommunitiesIndexRoute
 }
 
@@ -211,6 +237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/chat/$id': {
+      id: '/chat/$id'
+      path: '/chat/$id'
+      fullPath: '/chat/$id'
+      preLoaderRoute: typeof ChatIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/communities/': {
       id: '/communities/'
       path: '/communities'
@@ -232,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConfessionNumberRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/u/$username': {
+      id: '/u/$username'
+      path: '/u/$username'
+      fullPath: '/u/$username'
+      preLoaderRoute: typeof UUsernameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -243,8 +283,10 @@ const rootRouteChildren: RootRouteChildren = {
   NotificationsRoute: NotificationsRoute,
   ProfileRoute: ProfileRoute,
   SearchRoute: SearchRoute,
+  ChatIdRoute: ChatIdRoute,
   CommunitiesSlugRoute: CommunitiesSlugRoute,
   ConfessionNumberRoute: ConfessionNumberRoute,
+  UUsernameRoute: UUsernameRoute,
   CommunitiesIndexRoute: CommunitiesIndexRoute,
 }
 export const routeTree = rootRouteImport

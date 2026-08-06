@@ -1,25 +1,49 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { LogOut, Settings } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Camera, Loader2, LogOut, MapPin } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
+import { UserAvatar } from "@/components/UserAvatar";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCommunities } from "@/lib/api";
+import { updateProfile, uploadImage } from "@/lib/messages";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "Profile — Comrades Confessions" },
-      { name: "description", content: "Your comments, communities and reposts. Confessions stay anonymous forever." },
-      { property: "og:title", content: "Profile — Comrades Confessions" },
+      { title: "Your profile — Comrades Confessions" },
+      {
+        name: "description",
+        content: "Set your username, photo, bio and town. Your confessions stay anonymous forever.",
+      },
+      { property: "og:title", content: "Your profile — Comrades Confessions" },
       { property: "og:description", content: "Your comrade profile. Confessions are never linked to you." },
+      { property: "og:type", content: "profile" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: ProfilePage,
 });
 
 function ProfilePage() {
-  const { user, profile } = useAuth();
+  const { user, profile, setProfile } = useAuth();
+  const qc = useQueryClient();
+  const [bio, setBio] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [location, setLocation] = useState("");
+  const [openToChat, setOpenToChat] = useState(true);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    if (!profile) return;
+    setBio(profile.bio ?? "");
+    setDisplayName(profile.display_name ?? "");
+    setLocation(profile.location ?? "");
+    setOpenToChat(profile.open_to_chat ?? true);
+  }, [profile?.id]);
+
   const communities = useQuery({ queryKey: ["communities"], queryFn: fetchCommunities });
   const mine = (communities.data ?? []).filter((c) => user && c.memberIds.includes(user.id));
 
@@ -36,6 +60,37 @@ function ProfilePage() {
       return data ?? [];
     },
   });
+
+  const save = useMutation({
+    mutationFn: () =>
+      updateProfile(user!.id, {
+        bio: bio.trim() || null,
+        display_name: displayName.trim() || null,
+        location: location.trim() || null,
+        open_to_chat: openToChat,
+      }),
+    onSuccess: (data) => {
+      setProfile(data);
+      qc.invalidateQueries({ queryKey: ["profile"] });
+      toast.success("Profile saved");
+    },
+    onError: () => toast.error("Couldn't save profile"),
+  });
+
+  async function pickAvatar(file: File) {
+    if (!user) return;
+    setUploading(true);
+    try {
+      const path = await uploadImage(user.id, file, "avatar");
+      const data = await updateProfile(user.id, { avatar_url: path });
+      setProfile(data);
+      toast.success("Photo updated");
+    } catch {
+      toast.error("Couldn't upload that photo");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   if (!user) {
     return (
@@ -58,26 +113,94 @@ function ProfilePage() {
   return (
     <AppShell>
       <div className="surface p-5 text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-elevated text-xl font-bold uppercase text-primary">
-          {(profile?.username ?? "me").slice(0, 2)}
+        <div className="relative mx-auto w-20">
+          <UserAvatar username={profile?.username ?? "me"} avatarPath={profile?.avatar_url} size="lg" />
+          <label className="tap absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-primary">
+            {uploading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-primary-foreground" />
+            ) : (
+              <Camera className="h-4 w-4 text-primary-foreground" />
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => e.target.files?.[0] && pickAvatar(e.target.files[0])}
+            />
+          </label>
         </div>
         <h1 className="mt-3 font-display text-xl font-extrabold">@{profile?.username ?? "comrade"}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{profile?.bio ?? "No bio yet."}</p>
+        {profile?.username && (
+          <Link
+            to="/u/$username"
+            params={{ username: profile.username }}
+            className="tap text-xs text-primary"
+          >
+            View public profile
+          </Link>
+        )}
         <div className="mt-4 flex justify-center gap-8 text-sm">
           <Stat label="Communities" value={mine.length} />
           <Stat label="Comments" value={comments.data?.length ?? 0} />
         </div>
-        <div className="mt-4 flex justify-center gap-2">
-          <button className="tap flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs">
-            <Settings className="h-3.5 w-3.5" /> Settings
-          </button>
-          <button
-            onClick={() => supabase.auth.signOut()}
-            className="tap flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs text-muted-foreground"
-          >
-            <LogOut className="h-3.5 w-3.5" /> Sign out
-          </button>
-        </div>
+        <button
+          onClick={() => supabase.auth.signOut()}
+          className="tap mt-4 inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs text-muted-foreground"
+        >
+          <LogOut className="h-3.5 w-3.5" /> Sign out
+        </button>
+      </div>
+
+      <div className="surface mt-4 space-y-3 p-4">
+        <h2 className="font-display text-sm font-bold">Edit profile</h2>
+        <Field label="Display name">
+          <input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="What people call you"
+            className="h-11 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:border-primary"
+          />
+        </Field>
+        <Field label="Bio">
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            rows={3}
+            maxLength={200}
+            placeholder="Say something real about you"
+            className="w-full resize-none rounded-xl border border-border bg-card p-3 text-sm outline-none focus:border-primary"
+          />
+        </Field>
+        <Field label="Town">
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3">
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+            <input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="e.g. Kisii town"
+              className="h-11 flex-1 bg-transparent text-sm outline-none"
+            />
+          </div>
+        </Field>
+        <label className="flex items-center justify-between rounded-xl border border-border bg-card px-3 py-3 text-sm">
+          <span>
+            Open to private chats
+            <span className="block text-xs text-muted-foreground">Let comrades message you directly</span>
+          </span>
+          <input
+            type="checkbox"
+            checked={openToChat}
+            onChange={(e) => setOpenToChat(e.target.checked)}
+            className="h-5 w-5 accent-primary"
+          />
+        </label>
+        <button
+          onClick={() => save.mutate()}
+          disabled={save.isPending}
+          className="tap flex h-11 w-full items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground disabled:opacity-50"
+        >
+          {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save profile"}
+        </button>
       </div>
 
       <p className="mt-5 text-xs text-muted-foreground">
@@ -96,6 +219,15 @@ function ProfilePage() {
         ))}
       </div>
     </AppShell>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block text-left">
+      <span className="mb-1 block text-xs text-muted-foreground">{label}</span>
+      {children}
+    </label>
   );
 }
 
