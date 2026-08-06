@@ -158,6 +158,7 @@ export type CommentNode = {
   parent_id: string | null;
   depth: number;
   username: string;
+  avatar_url: string | null;
   likes: number;
   likedByMe: boolean;
   children: CommentNode[];
@@ -174,7 +175,7 @@ export async function fetchComments(confessionId: string, viewerId: string | nul
   if (comments.length === 0) return [];
 
   const [{ data: profiles }, { data: likes }] = await Promise.all([
-    supabase.from("profiles").select("id, username").in("id", [...new Set(comments.map((c) => c.user_id))]),
+    supabase.from("profiles").select("id, username, avatar_url").in("id", [...new Set(comments.map((c) => c.user_id))]),
     supabase.from("comment_likes").select("comment_id, user_id").in("comment_id", comments.map((c) => c.id)),
   ]);
 
@@ -183,6 +184,7 @@ export async function fetchComments(confessionId: string, viewerId: string | nul
     byId.set(c.id, {
       ...c,
       username: profiles?.find((p) => p.id === c.user_id)?.username ?? "member",
+      avatar_url: profiles?.find((p) => p.id === c.user_id)?.avatar_url ?? null,
       likes: (likes ?? []).filter((l) => l.comment_id === c.id).length,
       likedByMe: (likes ?? []).some((l) => l.comment_id === c.id && l.user_id === viewerId),
       children: [],
