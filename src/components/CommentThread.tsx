@@ -88,9 +88,13 @@ export function CommentThread({
   });
 
   function requireAuth(fn: () => void) {
-    if (!user) return toast.error("Sign in to do that");
+    if (!user) {
+      toast.error("Sign in to do that");
+      return;
+    }
     fn();
   }
+
 
   return (
     <section className="mt-4">
