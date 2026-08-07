@@ -1,12 +1,35 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, CheckCheck, ImagePlus, Loader2, Send } from "lucide-react";
+import {
+  ArrowLeft,
+  Ban,
+  Check,
+  CheckCheck,
+  Flag,
+  ImagePlus,
+  Loader2,
+  Mic,
+  Phone,
+  Send,
+  Square,
+  Video,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { resolveAvatar, fetchConversation, markRead, sendMessage, uploadImage } from "@/lib/messages";
+import {
+  acceptConversation,
+  fetchConversation,
+  fetchMessageReactions,
+  markRead,
+  resolveAvatar,
+  sendMessage,
+  toggleMessageReaction,
+  uploadImage,
+} from "@/lib/messages";
+import { fetchBlock, reportContent, toggleBlock } from "@/lib/social";
 import { timeAgo } from "@/lib/confessions";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +47,8 @@ export const Route = createFileRoute("/chat/$id")({
   component: ChatPage,
 });
 
+const EMOJIS = ["❤️", "😂", "😢", "😳", "🔥", "🤝"];
+
 function ChatPage() {
   const { id } = Route.useParams();
   const { user, loading } = useAuth();
@@ -31,10 +56,14 @@ function ChatPage() {
   const qc = useQueryClient();
   const [draft, setDraft] = useState("");
   const [peerTyping, setPeerTyping] = useState(false);
+  const [peerOnline, setPeerOnline] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [pickerFor, setPickerFor] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const typingChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recorder = useRef<MediaRecorder | null>(null);
 
   const key = ["chat", id, user?.id ?? null];
   const chat = useQuery({
@@ -43,11 +72,39 @@ function ChatPage() {
     queryFn: () => fetchConversation(id, user!.id),
   });
 
-  // Realtime: new/updated messages + typing broadcasts.
+  const peer = chat.data?.peer;
+
+  const reactions = useQuery({
+    queryKey: ["message-reactions", id],
+    enabled: !!user,
+    queryFn: () => fetchMessageReactions(id),
+  });
+
+  const block = useQuery({
+    queryKey: ["block", peer?.id, user?.id ?? null],
+    enabled: !!peer && !!user,
+    queryFn: () => fetchBlock(user!.id, peer!.id),
+  });
+
+  const membership = useQuery({
+    queryKey: ["membership", id, user?.id ?? null],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("conversation_members")
+        .select("accepted")
+        .eq("conversation_id", id)
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  // Realtime: messages, reactions, typing broadcasts and presence.
   useEffect(() => {
     if (!user) return;
     const channel = supabase
-      .channel(`chat:${id}`, { config: { broadcast: { self: false } } })
+      .channel(`chat:${id}`, { config: { broadcast: { self: false }, presence: { key: user.id } } })
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "messages", filter: `conversation_id=eq.${id}` },
@@ -57,13 +114,24 @@ function ChatPage() {
           markRead(id, user.id);
         },
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "message_reactions", filter: `conversation_id=eq.${id}` },
+        () => qc.invalidateQueries({ queryKey: ["message-reactions", id] }),
+      )
       .on("broadcast", { event: "typing" }, ({ payload }) => {
         if (payload?.userId === user.id) return;
         setPeerTyping(true);
         if (typingTimer.current) clearTimeout(typingTimer.current);
         typingTimer.current = setTimeout(() => setPeerTyping(false), 2500);
       })
-      .subscribe();
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState();
+        setPeerOnline(Object.keys(state).some((k) => k !== user.id));
+      })
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") channel.track({ userId: user.id, at: Date.now() });
+      });
     typingChannel.current = channel;
     return () => {
       if (typingTimer.current) clearTimeout(typingTimer.current);
@@ -81,10 +149,17 @@ function ChatPage() {
   }, [chat.data?.messages.length, peerTyping]);
 
   const send = useMutation({
-    mutationFn: async (imageUrl?: string | null) => {
+    mutationFn: async (media?: { imageUrl?: string | null; audioUrl?: string | null } | null) => {
       const body = draft.trim();
-      if (!body && !imageUrl) return;
-      await sendMessage({ conversationId: id, senderId: user!.id, body, imageUrl });
+      if (!body && !media?.imageUrl && !media?.audioUrl) return;
+      await sendMessage({
+        conversationId: id,
+        senderId: user!.id,
+        body,
+        imageUrl: media?.imageUrl ?? null,
+        audioUrl: media?.audioUrl ?? null,
+        peerId: peer?.id ?? null,
+      });
     },
     onSuccess: () => {
       setDraft("");
@@ -92,6 +167,12 @@ function ChatPage() {
       qc.invalidateQueries({ queryKey: ["conversations"] });
     },
     onError: () => toast.error("Message didn't send"),
+  });
+
+  const react = useMutation({
+    mutationFn: (input: { messageId: string; emoji: string; active: boolean }) =>
+      toggleMessageReaction({ ...input, conversationId: id, userId: user!.id }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["message-reactions", id] }),
   });
 
   function onType(value: string) {
@@ -105,11 +186,44 @@ function ChatPage() {
     try {
       const path = await uploadImage(user.id, file, "chat");
       const url = await resolveAvatar(path);
-      await send.mutateAsync(url);
+      await send.mutateAsync({ imageUrl: url });
     } catch {
       toast.error("Couldn't upload that image");
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function toggleRecording() {
+    if (!user) return;
+    if (recording) {
+      recorder.current?.stop();
+      setRecording(false);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+      rec.ondataavailable = (e) => chunks.push(e.data);
+      rec.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setUploading(true);
+        try {
+          const path = await uploadImage(user.id, new Blob(chunks, { type: "audio/webm" }), "voice");
+          const url = await resolveAvatar(path);
+          await send.mutateAsync({ audioUrl: url });
+        } catch {
+          toast.error("Couldn't send that voice note");
+        } finally {
+          setUploading(false);
+        }
+      };
+      rec.start();
+      recorder.current = rec;
+      setRecording(true);
+    } catch {
+      toast.error("Microphone permission denied");
     }
   }
 
@@ -126,7 +240,8 @@ function ChatPage() {
     return null;
   }
 
-  const peer = chat.data?.peer;
+  const blocked = !!block.data?.iBlocked || !!block.data?.blockedMe;
+  const needsAccept = membership.data?.accepted === false;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -136,15 +251,70 @@ function ChatPage() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           {peer && (
-            <Link to="/u/$username" params={{ username: peer.username }} className="tap flex items-center gap-3">
-              <UserAvatar username={peer.username} avatarPath={peer.avatar_url} />
-              <div>
-                <p className="font-display text-sm font-bold leading-tight">@{peer.username}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {peerTyping ? <span className="text-primary">typing…</span> : (peer.location ?? "comrade")}
-                </p>
+            <>
+              <Link to="/u/$username" params={{ username: peer.username }} className="tap flex items-center gap-3">
+                <div className="relative">
+                  <UserAvatar username={peer.username} avatarPath={peer.avatar_url} />
+                  {peerOnline && (
+                    <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background bg-primary" />
+                  )}
+                </div>
+                <div>
+                  <p className="font-display text-sm font-bold leading-tight">@{peer.username}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {peerTyping ? (
+                      <span className="text-primary">typing…</span>
+                    ) : peerOnline ? (
+                      "online"
+                    ) : (
+                      (peer.location ?? "comrade")
+                    )}
+                  </p>
+                </div>
+              </Link>
+              <div className="ml-auto flex items-center gap-1">
+                <button
+                  onClick={() => toast("Voice calls are a premium feature — coming soon")}
+                  aria-label="Voice call (coming soon)"
+                  className="tap rounded-full p-2 text-muted-foreground hover:bg-elevated"
+                >
+                  <Phone className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => toast("Video calls are a premium feature — coming soon")}
+                  aria-label="Video call (coming soon)"
+                  className="tap rounded-full p-2 text-muted-foreground hover:bg-elevated"
+                >
+                  <Video className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={async () => {
+                    await toggleBlock(user.id, peer.id, !!block.data?.iBlocked);
+                    qc.invalidateQueries({ queryKey: ["block"] });
+                    toast.success(block.data?.iBlocked ? "Unblocked" : "Blocked");
+                  }}
+                  aria-label="Block comrade"
+                  className="tap rounded-full p-2 text-muted-foreground hover:bg-elevated"
+                >
+                  <Ban className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={async () => {
+                    await reportContent({
+                      targetType: "user",
+                      targetId: peer.id,
+                      reason: "reported from chat",
+                      reporterId: user.id,
+                    });
+                    toast.success("Reported");
+                  }}
+                  aria-label="Report comrade"
+                  className="tap rounded-full p-2 text-muted-foreground hover:bg-elevated"
+                >
+                  <Flag className="h-4 w-4" />
+                </button>
               </div>
-            </Link>
+            </>
           )}
         </div>
       </header>
@@ -159,17 +329,25 @@ function ChatPage() {
         ) : (
           (chat.data?.messages ?? []).map((m) => {
             const mine = m.sender_id === user.id;
+            const mineReactions = (reactions.data ?? []).filter((r) => r.message_id === m.id);
+            const grouped = EMOJIS.map((e) => ({
+              emoji: e,
+              count: mineReactions.filter((r) => r.emoji === e).length,
+              active: mineReactions.some((r) => r.emoji === e && r.user_id === user.id),
+            })).filter((g) => g.count > 0);
             return (
-              <div key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}>
-                <div
+              <div key={m.id} className={cn("flex flex-col", mine ? "items-end" : "items-start")}>
+                <button
+                  onClick={() => setPickerFor(pickerFor === m.id ? null : m.id)}
                   className={cn(
-                    "max-w-[78%] rounded-2xl px-3.5 py-2 text-sm",
+                    "max-w-[78%] rounded-2xl px-3.5 py-2 text-left text-sm",
                     mine ? "bg-primary text-primary-foreground" : "bg-card text-foreground",
                   )}
                 >
                   {m.image_url && (
                     <img src={m.image_url} alt="Shared" className="mb-1.5 max-h-64 rounded-xl object-cover" />
                   )}
+                  {m.audio_url && <audio controls src={m.audio_url} className="mb-1.5 h-9 w-56 max-w-full" />}
                   {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
                   <span
                     className={cn(
@@ -178,10 +356,47 @@ function ChatPage() {
                     )}
                   >
                     {timeAgo(m.created_at)}
-                    {mine &&
-                      (m.read_at ? <CheckCheck className="h-3 w-3" /> : <Check className="h-3 w-3" />)}
+                    {mine && (m.read_at ? <CheckCheck className="h-3 w-3" /> : <Check className="h-3 w-3" />)}
                   </span>
-                </div>
+                </button>
+
+                {grouped.length > 0 && (
+                  <div className="mt-1 flex gap-1">
+                    {grouped.map((g) => (
+                      <button
+                        key={g.emoji}
+                        onClick={() => react.mutate({ messageId: m.id, emoji: g.emoji, active: g.active })}
+                        className={cn(
+                          "tap rounded-full border px-2 py-0.5 text-[11px]",
+                          g.active ? "border-primary text-primary" : "border-border text-muted-foreground",
+                        )}
+                      >
+                        {g.emoji} {g.count}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {pickerFor === m.id && (
+                  <div className="surface mt-1 flex gap-1 p-1.5">
+                    {EMOJIS.map((e) => (
+                      <button
+                        key={e}
+                        onClick={() => {
+                          react.mutate({
+                            messageId: m.id,
+                            emoji: e,
+                            active: mineReactions.some((r) => r.emoji === e && r.user_id === user.id),
+                          });
+                          setPickerFor(null);
+                        }}
+                        className="tap rounded-full px-1.5 text-lg"
+                      >
+                        {e}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })
@@ -203,35 +418,67 @@ function ChatPage() {
       </main>
 
       <div className="glass fixed inset-x-0 bottom-0 z-30 border-t border-border pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3">
-        <div className="mx-auto flex max-w-2xl items-center gap-2 px-4">
-          <label className="tap flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-border text-muted-foreground">
-            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => e.target.files?.[0] && pickImage(e.target.files[0])}
-            />
-          </label>
-          <input
-            value={draft}
-            onChange={(e) => onType(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && draft.trim() && send.mutate(null)}
-            placeholder="Message…"
-            className="h-11 flex-1 rounded-full border border-border bg-card px-4 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
-          />
-          <button
-            disabled={!draft.trim() || send.isPending}
-            onClick={() => send.mutate(null)}
-            aria-label="Send message"
-            className="tap flex h-11 w-11 items-center justify-center rounded-full bg-primary disabled:opacity-40"
-          >
-            {send.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin text-primary-foreground" />
-            ) : (
-              <Send className="h-4 w-4 text-primary-foreground" />
-            )}
-          </button>
+        <div className="mx-auto max-w-2xl px-4">
+          {blocked ? (
+            <p className="py-2 text-center text-sm text-muted-foreground">
+              Messaging is unavailable — one of you blocked the other.
+            </p>
+          ) : needsAccept ? (
+            <div className="flex items-center gap-3">
+              <p className="flex-1 text-xs text-muted-foreground">Message request from @{peer?.username}</p>
+              <button
+                onClick={async () => {
+                  await acceptConversation(id, user.id);
+                  qc.invalidateQueries({ queryKey: ["membership", id] });
+                  qc.invalidateQueries({ queryKey: ["conversations"] });
+                }}
+                className="tap rounded-full bg-primary px-5 py-2 text-sm font-bold text-primary-foreground"
+              >
+                Accept
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <label className="tap flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-border text-muted-foreground">
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => e.target.files?.[0] && pickImage(e.target.files[0])}
+                />
+              </label>
+              <button
+                onClick={toggleRecording}
+                aria-label={recording ? "Stop recording" : "Record voice note"}
+                className={cn(
+                  "tap flex h-11 w-11 items-center justify-center rounded-full border",
+                  recording ? "border-primary text-primary" : "border-border text-muted-foreground",
+                )}
+              >
+                {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </button>
+              <input
+                value={draft}
+                onChange={(e) => onType(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && draft.trim() && send.mutate(null)}
+                placeholder="Message…"
+                className="h-11 flex-1 rounded-full border border-border bg-card px-4 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
+              />
+              <button
+                disabled={!draft.trim() || send.isPending}
+                onClick={() => send.mutate(null)}
+                aria-label="Send message"
+                className="tap flex h-11 w-11 items-center justify-center rounded-full bg-primary disabled:opacity-40"
+              >
+                {send.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-primary-foreground" />
+                ) : (
+                  <Send className="h-4 w-4 text-primary-foreground" />
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
