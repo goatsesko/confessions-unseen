@@ -1,6 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { ReactionKind } from "./confessions";
-import { getDeviceKey } from "./confessions";
+import { extractMentions, getDeviceKey } from "./confessions";
+import { notify } from "./social";
+
 
 export type Confession = {
   id: string;
