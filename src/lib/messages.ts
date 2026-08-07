@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { notify } from "./social";
 
 export type ChatProfile = {
   id: string;
@@ -16,8 +17,17 @@ export type Message = {
   sender_id: string;
   body: string;
   image_url: string | null;
+  audio_url: string | null;
+  reply_to_id: string | null;
   read_at: string | null;
   created_at: string;
+};
+
+export type MessageReaction = {
+  id: string;
+  message_id: string;
+  user_id: string;
+  emoji: string;
 };
 
 export type ConversationSummary = {
@@ -26,6 +36,7 @@ export type ConversationSummary = {
   peer: ChatProfile | null;
   lastMessage: Message | null;
   unread: number;
+  accepted: boolean;
 };
 
 const PROFILE_COLS = "id, username, display_name, avatar_url, bio, location, open_to_chat";
@@ -44,8 +55,8 @@ export async function resolveAvatar(path: string | null | undefined): Promise<st
   return data.signedUrl;
 }
 
-export async function uploadImage(userId: string, file: File, folder: "avatar" | "chat") {
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+export async function uploadImage(userId: string, file: File | Blob, folder: "avatar" | "chat" | "voice") {
+  const ext = (file instanceof File ? file.name.split(".").pop()?.toLowerCase() : null) ?? (folder === "voice" ? "webm" : "jpg");
   const path = `${userId}/${folder}-${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
   if (error) throw error;
@@ -109,8 +120,8 @@ export async function getOrCreateConversation(userId: string, peerId: string) {
   if (convError) throw convError;
 
   const { error: memberError } = await supabase.from("conversation_members").insert([
-    { conversation_id: conv.id, user_id: userId },
-    { conversation_id: conv.id, user_id: peerId },
+    { conversation_id: conv.id, user_id: userId, accepted: true },
+    { conversation_id: conv.id, user_id: peerId, accepted: false },
   ]);
   if (memberError) throw memberError;
   return conv.id as string;
@@ -119,7 +130,7 @@ export async function getOrCreateConversation(userId: string, peerId: string) {
 export async function fetchConversations(userId: string): Promise<ConversationSummary[]> {
   const { data: memberships, error } = await supabase
     .from("conversation_members")
-    .select("conversation_id, last_read_at")
+    .select("conversation_id, last_read_at, accepted")
     .eq("user_id", userId);
   if (error) throw error;
   const ids = (memberships ?? []).map((m) => m.conversation_id);
@@ -144,13 +155,15 @@ export async function fetchConversations(userId: string): Promise<ConversationSu
   return (convs ?? [])
     .map((c) => {
       const peerId = (peersRows ?? []).find((p) => p.conversation_id === c.id && p.user_id !== userId)?.user_id;
-      const lastRead = memberships?.find((m) => m.conversation_id === c.id)?.last_read_at ?? null;
+      const membership = memberships?.find((m) => m.conversation_id === c.id);
+      const lastRead = membership?.last_read_at ?? null;
       const convMsgs = (msgs ?? []).filter((m) => m.conversation_id === c.id) as Message[];
       return {
         id: c.id,
         last_message_at: c.last_message_at,
         peer: ((profiles ?? []) as ChatProfile[]).find((p) => p.id === peerId) ?? null,
         lastMessage: convMsgs[0] ?? null,
+        accepted: membership?.accepted ?? true,
         unread: convMsgs.filter(
           (m) => m.sender_id !== userId && (!lastRead || new Date(m.created_at) > new Date(lastRead)),
         ).length,
@@ -180,13 +193,75 @@ export async function sendMessage(input: {
   senderId: string;
   body: string;
   imageUrl?: string | null | undefined;
+  audioUrl?: string | null | undefined;
+  peerId?: string | null | undefined;
+  senderUsername?: string | undefined;
 }) {
   const { error } = await supabase.from("messages").insert({
     conversation_id: input.conversationId,
     sender_id: input.senderId,
     body: input.body,
     image_url: input.imageUrl ?? null,
+    audio_url: input.audioUrl ?? null,
   });
+  if (error) throw error;
+  if (input.peerId) {
+    await notify({
+      userId: input.peerId,
+      actorId: input.senderId,
+      kind: "message",
+      body: "sent you a message",
+      link: `/chat/${input.conversationId}`,
+    });
+  }
+}
+
+/** A chat stays in the recipient's "Requests" tab until they accept it. */
+export async function acceptConversation(conversationId: string, userId: string) {
+  const { error } = await supabase
+    .from("conversation_members")
+    .update({ accepted: true })
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function fetchMessageReactions(conversationId: string) {
+  const { data } = await supabase
+    .from("message_reactions")
+    .select("id, message_id, user_id, emoji")
+    .eq("conversation_id", conversationId);
+  return (data ?? []) as MessageReaction[];
+}
+
+export async function toggleMessageReaction(input: {
+  messageId: string;
+  conversationId: string;
+  userId: string;
+  emoji: string;
+  active: boolean;
+}) {
+  if (input.active) {
+    const { error } = await supabase
+      .from("message_reactions")
+      .delete()
+      .eq("message_id", input.messageId)
+      .eq("user_id", input.userId)
+      .eq("emoji", input.emoji);
+    if (error) throw error;
+    return;
+  }
+  const { error } = await supabase.from("message_reactions").insert({
+    message_id: input.messageId,
+    conversation_id: input.conversationId,
+    user_id: input.userId,
+    emoji: input.emoji,
+  });
+  if (error) throw error;
+}
+
+export async function deleteMessage(messageId: string) {
+  const { error } = await supabase.from("messages").delete().eq("id", messageId);
   if (error) throw error;
 }
 
