@@ -84,19 +84,35 @@ function AuthPage() {
 
       {!user ? (
         <>
+          <label className="tap mt-8 flex w-full max-w-xs items-start gap-3 rounded-2xl border border-border bg-card p-4 text-left">
+            <input
+              type="checkbox"
+              checked={isAdult}
+              onChange={(e) => setIsAdult(e.target.checked)}
+              className="mt-0.5 h-5 w-5 shrink-0 accent-primary"
+            />
+            <span className="text-sm">
+              I'm 18 years or older
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                This community discusses adult topics. You must be 18+ to join.
+              </span>
+            </span>
+          </label>
           <button
             onClick={signIn}
-            disabled={busy}
-            className="tap pink-glow mt-8 flex h-12 w-full max-w-xs items-center justify-center gap-2 rounded-full bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
+            disabled={busy || !isAdult}
+            className="tap pink-glow mt-4 flex h-12 w-full max-w-xs items-center justify-center gap-2 rounded-full bg-primary text-sm font-bold text-primary-foreground disabled:opacity-40"
           >
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             Continue with Google
           </button>
           <p className="mt-4 max-w-xs text-xs text-muted-foreground">
-            Your email stays private forever. You never need an account to confess — only to comment and message.
+            Your email and real name stay private forever. You never need an account to confess — only to comment and
+            message.
           </p>
         </>
       ) : profile ? (
+
         <>
           <p className="mt-8 text-sm">You're signed in as @{profile.username}</p>
           <button
