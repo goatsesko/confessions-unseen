@@ -47,6 +47,19 @@ function ProfilePage() {
   const communities = useQuery({ queryKey: ["communities"], queryFn: fetchCommunities });
   const mine = (communities.data ?? []).filter((c) => user && c.memberIds.includes(user.id));
 
+  const stats = useQuery({
+    queryKey: ["follow-stats", user?.id ?? null, user?.id ?? null],
+    enabled: !!user,
+    queryFn: () => fetchFollowStats(user!.id, user!.id),
+  });
+
+  const reputation = useQuery({
+    queryKey: ["reputation", user?.id ?? null],
+    enabled: !!user,
+    queryFn: () => fetchReputation(user!.id),
+  });
+
+
   const comments = useQuery({
     queryKey: ["my-comments", user?.id],
     enabled: !!user,
