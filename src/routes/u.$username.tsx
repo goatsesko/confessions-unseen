@@ -145,26 +145,67 @@ function PublicProfilePage() {
             <MapPin className="h-3 w-3" /> {p.location}
           </p>
         )}
-        <div className="mt-4">
+        <div className="mt-4 flex justify-center gap-8 text-sm">
+          <Stat label="Followers" value={stats.data?.followers ?? 0} />
+          <Stat label="Following" value={stats.data?.following ?? 0} />
+          <Stat label="Reputation" value={reputation.data ?? 0} />
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           {isMe ? (
-            <Link
-              to="/profile"
-              className="tap rounded-full border border-border px-5 py-2 text-xs font-bold"
-            >
+            <Link to="/profile" className="tap rounded-full border border-border px-5 py-2 text-xs font-bold">
               Edit profile
             </Link>
-          ) : p.open_to_chat ? (
-            <button
-              onClick={message}
-              className="tap flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground"
-            >
-              <MessageCircle className="h-4 w-4" /> Message
-            </button>
           ) : (
-            <p className="text-xs text-muted-foreground">This comrade has private messages turned off.</p>
+            <>
+              <button
+                onClick={() => (user ? follow.mutate() : navigate({ to: "/auth" }))}
+                className={cn(
+                  "tap rounded-full px-5 py-2.5 text-sm font-bold",
+                  stats.data?.followedByMe
+                    ? "border border-border text-muted-foreground"
+                    : "bg-primary text-primary-foreground",
+                )}
+              >
+                {stats.data?.followedByMe ? "Following" : "Follow"}
+              </button>
+              {p.open_to_chat && !block.data?.iBlocked && !block.data?.blockedMe && (
+                <button
+                  onClick={message}
+                  className="tap flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm font-bold"
+                >
+                  <MessageCircle className="h-4 w-4" /> Message
+                </button>
+              )}
+              {user && (
+                <>
+                  <button
+                    onClick={() => blockMutation.mutate()}
+                    aria-label="Block comrade"
+                    className="tap flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted-foreground"
+                  >
+                    <Ban className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={report}
+                    aria-label="Report comrade"
+                    className="tap flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted-foreground"
+                  >
+                    <Flag className="h-4 w-4" />
+                  </button>
+                </>
+              )}
+            </>
           )}
         </div>
+        {!isMe && block.data?.iBlocked && (
+          <p className="mt-2 text-xs text-muted-foreground">You blocked this comrade. Tap the ban icon to undo.</p>
+        )}
+        {!isMe && !p.open_to_chat && (
+          <p className="mt-2 text-xs text-muted-foreground">This comrade has private messages turned off.</p>
+        )}
       </div>
+
 
       <h2 className="mt-5 font-display text-sm font-bold">Comments</h2>
       <div className="mt-2 space-y-2">
