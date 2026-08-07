@@ -122,10 +122,11 @@ function NotificationsPage() {
                 <p className="text-[11px] text-muted-foreground">{timeAgo(n.created_at)}</p>
               </div>
               {n.link && (
-                <Link to={n.link} className="tap text-xs font-bold text-primary">
+                <a href={n.link} className="tap text-xs font-bold text-primary">
                   View
-                </Link>
+                </a>
               )}
+
             </div>
           ))}
         </div>
