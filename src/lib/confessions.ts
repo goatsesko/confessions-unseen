@@ -68,3 +68,13 @@ export function extractParentNumber(text: string): number | null {
   const m = text.match(/#(\d{1,9})/);
   return m ? Number(m[1]) : null;
 }
+
+/** Permanent public confession ID, e.g. 123 -> "#000123". */
+export function formatConfessionId(n: number): string {
+  return `#${String(n).padStart(6, "0")}`;
+}
+
+/** @usernames referenced inside a comment body. */
+export function extractMentions(text: string): string[] {
+  return [...new Set([...text.matchAll(/@([a-z0-9_]{3,20})/gi)].map((m) => m[1]!.toLowerCase()))];
+}
