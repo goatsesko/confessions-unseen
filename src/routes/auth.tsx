@@ -24,9 +24,15 @@ function AuthPage() {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [username, setUsername] = useState("");
+  const [isAdult, setIsAdult] = useState(false);
 
   async function signIn() {
+    if (!isAdult) {
+      toast.error("You must confirm you're 18 or older");
+      return;
+    }
     setBusy(true);
+    window.localStorage.setItem("cc_age_confirmed", new Date().toISOString());
     const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/auth" });
     if (result.error) {
       toast.error("Sign in failed. Try again.");
@@ -44,7 +50,11 @@ function AuthPage() {
       return;
     }
     setBusy(true);
-    const { error } = await supabase.from("profiles").insert({ id: user.id, username: handle });
+    const { error } = await supabase.from("profiles").insert({
+      id: user.id,
+      username: handle,
+      age_confirmed_at: window.localStorage.getItem("cc_age_confirmed") ?? new Date().toISOString(),
+    });
     setBusy(false);
     if (error) {
       toast.error(error.code === "23505" ? "That username is taken" : "Couldn't save username");
@@ -52,6 +62,7 @@ function AuthPage() {
     }
     navigate({ to: "/" });
   }
+
 
   if (loading) {
     return (
