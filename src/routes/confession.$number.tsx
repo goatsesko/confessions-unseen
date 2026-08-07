@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { ReactionRow } from "@/components/ConfessionCard";
 import { CommentThread } from "@/components/CommentThread";
 import { fetchConfession, fetchThread } from "@/lib/api";
-import { timeAgo } from "@/lib/confessions";
+import { formatConfessionId, timeAgo } from "@/lib/confessions";
 
 export const Route = createFileRoute("/confession/$number")({
   head: ({ params }) => ({
