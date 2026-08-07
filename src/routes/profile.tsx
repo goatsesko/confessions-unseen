@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCommunities } from "@/lib/api";
 import { updateProfile, uploadImage } from "@/lib/messages";
+import { fetchFollowStats, fetchReputation } from "@/lib/social";
+
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
