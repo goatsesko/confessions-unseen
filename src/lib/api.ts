@@ -1,6 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { ReactionKind } from "./confessions";
-import { getDeviceKey } from "./confessions";
+import { extractMentions, getDeviceKey } from "./confessions";
+import { notify } from "./social";
+
 
 export type Confession = {
   id: string;
@@ -161,10 +163,58 @@ export type CommentNode = {
   avatar_url: string | null;
   likes: number;
   likedByMe: boolean;
+  helpful: number;
+  funny: number;
+  myVotes: VoteKind[];
+  replyCount: number;
   children: CommentNode[];
 };
 
-export async function fetchComments(confessionId: string, viewerId: string | null): Promise<CommentNode[]> {
+export type VoteKind = "helpful" | "funny";
+export type CommentSort = "top" | "newest" | "helpful" | "funny" | "controversial";
+
+export const COMMENT_SORTS: { key: CommentSort; label: string }[] = [
+  { key: "top", label: "Top" },
+  { key: "newest", label: "Newest" },
+  { key: "helpful", label: "Most Helpful" },
+  { key: "funny", label: "Most Funny" },
+  { key: "controversial", label: "Most Controversial" },
+];
+
+/** Smart ranking: likes + replies + helpful votes, decayed by age. */
+function score(node: CommentNode): number {
+  const hours = (Date.now() - new Date(node.created_at).getTime()) / 3_600_000;
+  const raw = node.likes + node.replyCount * 2 + node.helpful * 3 + node.funny;
+  return raw / Math.pow(hours + 2, 0.6);
+}
+
+function sortNodes(nodes: CommentNode[], sort: CommentSort): CommentNode[] {
+  const sorted = [...nodes].sort((a, b) => {
+    switch (sort) {
+      case "newest":
+        return +new Date(b.created_at) - +new Date(a.created_at);
+      case "helpful":
+        return b.helpful - a.helpful || b.likes - a.likes;
+      case "funny":
+        return b.funny - a.funny || b.likes - a.likes;
+      case "controversial":
+        return (
+          Math.min(b.likes, b.replyCount) * (b.likes + b.replyCount) -
+          Math.min(a.likes, a.replyCount) * (a.likes + a.replyCount)
+        );
+      default:
+        return score(b) - score(a);
+    }
+  });
+  for (const n of sorted) n.children = sortNodes(n.children, sort);
+  return sorted;
+}
+
+export async function fetchComments(
+  confessionId: string,
+  viewerId: string | null,
+  sort: CommentSort = "top",
+): Promise<CommentNode[]> {
   const { data: rows, error } = await supabase
     .from("comments")
     .select("id, body, created_at, user_id, parent_id, depth")
@@ -174,19 +224,26 @@ export async function fetchComments(confessionId: string, viewerId: string | nul
   const comments = rows ?? [];
   if (comments.length === 0) return [];
 
-  const [{ data: profiles }, { data: likes }] = await Promise.all([
+  const commentIds = comments.map((c) => c.id);
+  const [{ data: profiles }, { data: likes }, { data: votes }] = await Promise.all([
     supabase.from("profiles").select("id, username, avatar_url").in("id", [...new Set(comments.map((c) => c.user_id))]),
-    supabase.from("comment_likes").select("comment_id, user_id").in("comment_id", comments.map((c) => c.id)),
+    supabase.from("comment_likes").select("comment_id, user_id").in("comment_id", commentIds),
+    supabase.from("comment_votes").select("comment_id, user_id, kind").in("comment_id", commentIds),
   ]);
 
   const byId = new Map<string, CommentNode>();
   for (const c of comments) {
+    const mine = (votes ?? []).filter((v) => v.comment_id === c.id && v.user_id === viewerId);
     byId.set(c.id, {
       ...c,
       username: profiles?.find((p) => p.id === c.user_id)?.username ?? "member",
       avatar_url: profiles?.find((p) => p.id === c.user_id)?.avatar_url ?? null,
       likes: (likes ?? []).filter((l) => l.comment_id === c.id).length,
       likedByMe: (likes ?? []).some((l) => l.comment_id === c.id && l.user_id === viewerId),
+      helpful: (votes ?? []).filter((v) => v.comment_id === c.id && v.kind === "helpful").length,
+      funny: (votes ?? []).filter((v) => v.comment_id === c.id && v.kind === "funny").length,
+      myVotes: mine.map((v) => v.kind as VoteKind),
+      replyCount: comments.filter((r) => r.parent_id === c.id).length,
       children: [],
     });
   }
@@ -196,14 +253,17 @@ export async function fetchComments(confessionId: string, viewerId: string | nul
     if (parent) parent.children.push(node);
     else roots.push(node);
   }
-  return roots;
+  return sortNodes(roots, sort);
 }
 
 export async function addComment(input: {
   confessionId: string;
+  confessionNumber?: number | undefined;
   userId: string;
+  username?: string | undefined;
   body: string;
   parentId: string | null;
+  parentUserId?: string | null | undefined;
   depth: number;
 }) {
   const { error } = await supabase.from("comments").insert({
@@ -214,9 +274,34 @@ export async function addComment(input: {
     depth: input.depth,
   });
   if (error) throw error;
+
+  const link = input.confessionNumber ? `/confession/${input.confessionNumber}` : null;
+  const who = input.username ? `@${input.username}` : "A comrade";
+
+  if (input.parentUserId) {
+    await notify({ userId: input.parentUserId, actorId: input.userId, kind: "reply", body: `${who} replied to you`, link });
+  }
+  const mentions = extractMentions(input.body);
+  if (mentions.length > 0) {
+    const { data: mentioned } = await supabase.from("profiles").select("id, username").in("username", mentions);
+    for (const m of mentioned ?? []) {
+      if (m.id === input.parentUserId) continue;
+      await notify({ userId: m.id, actorId: input.userId, kind: "mention", body: `${who} mentioned you`, link });
+    }
+  }
 }
 
-export async function toggleCommentLike(commentId: string, userId: string, liked: boolean) {
+export async function editComment(commentId: string, body: string) {
+  const { error } = await supabase.from("comments").update({ body }).eq("id", commentId);
+  if (error) throw error;
+}
+
+export async function deleteComment(commentId: string) {
+  const { error } = await supabase.from("comments").delete().eq("id", commentId);
+  if (error) throw error;
+}
+
+export async function toggleCommentLike(commentId: string, userId: string, liked: boolean, ownerId?: string) {
   if (liked) {
     const { error } = await supabase
       .from("comment_likes")
@@ -224,8 +309,27 @@ export async function toggleCommentLike(commentId: string, userId: string, liked
       .eq("comment_id", commentId)
       .eq("user_id", userId);
     if (error) throw error;
-  } else {
-    const { error } = await supabase.from("comment_likes").insert({ comment_id: commentId, user_id: userId });
-    if (error) throw error;
+    return;
+  }
+  const { error } = await supabase.from("comment_likes").insert({ comment_id: commentId, user_id: userId });
+  if (error) throw error;
+  if (ownerId) {
+    await notify({ userId: ownerId, actorId: userId, kind: "like", body: "liked your comment", link: null });
   }
 }
+
+export async function toggleCommentVote(commentId: string, userId: string, kind: VoteKind, active: boolean) {
+  if (active) {
+    const { error } = await supabase
+      .from("comment_votes")
+      .delete()
+      .eq("comment_id", commentId)
+      .eq("user_id", userId)
+      .eq("kind", kind);
+    if (error) throw error;
+    return;
+  }
+  const { error } = await supabase.from("comment_votes").insert({ comment_id: commentId, user_id: userId, kind });
+  if (error) throw error;
+}
+

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { ReactionRow } from "@/components/ConfessionCard";
 import { CommentThread } from "@/components/CommentThread";
 import { fetchConfession, fetchThread } from "@/lib/api";
-import { timeAgo } from "@/lib/confessions";
+import { formatConfessionId, timeAgo } from "@/lib/confessions";
 
 export const Route = createFileRoute("/confession/$number")({
   head: ({ params }) => ({
@@ -60,7 +60,7 @@ function ConfessionDetail() {
           <button onClick={() => navigate({ to: "/" })} className="tap p-1" aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <span className="font-mono text-sm font-bold text-primary">#{number}</span>
+          <span className="font-mono text-sm font-bold text-primary">{formatConfessionId(n)}</span>
           <div className="ml-auto flex items-center gap-1 text-muted-foreground">
             <button className="tap p-2" aria-label="Save">
               <Bookmark className="h-5 w-5" />
@@ -84,7 +84,7 @@ function ConfessionDetail() {
                 params={{ number: String(c.parent_number) }}
                 className="tap mt-2 inline-block rounded-full bg-elevated px-2.5 py-1 text-[11px] text-muted-foreground"
               >
-                Adding to confession #{c.parent_number}
+                Adding to confession {formatConfessionId(c.parent_number)}
               </Link>
             )}
             <h1 className="mt-2 whitespace-pre-wrap font-display text-2xl font-extrabold leading-tight">{c.body}</h1>
@@ -102,7 +102,7 @@ function ConfessionDetail() {
                 search={{ addTo: c.number }}
                 className="tap flex items-center gap-2 font-semibold text-primary"
               >
-                <Repeat2 className="h-4 w-4" /> Add to #{c.number}
+                <Repeat2 className="h-4 w-4" /> Add to {formatConfessionId(c.number)}
               </Link>
               <button onClick={share} className="tap flex items-center gap-2">
                 <Share2 className="h-4 w-4" /> Share
@@ -121,7 +121,7 @@ function ConfessionDetail() {
                       className="surface tap block p-3"
                     >
                       <p className="text-[11px] text-muted-foreground">
-                        <span className="font-mono font-semibold text-primary">#{t.number}</span> ·{" "}
+                        <span className="font-mono font-semibold text-primary">{formatConfessionId(t.number)}</span> ·{" "}
                         {timeAgo(t.created_at)}
                       </p>
                       <p className="mt-1 text-sm">{t.body}</p>
@@ -131,7 +131,7 @@ function ConfessionDetail() {
               </section>
             )}
 
-            <CommentThread confessionId={c.id} />
+            <CommentThread confessionId={c.id} confessionNumber={c.number} />
           </>
         )}
       </main>

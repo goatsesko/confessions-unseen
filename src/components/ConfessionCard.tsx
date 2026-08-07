@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Eye, MessageCircle, MoreHorizontal, Repeat2, Share2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { REACTIONS, type ReactionKind, formatCount, timeAgo } from "@/lib/confessions";
+import { REACTIONS, type ReactionKind, formatConfessionId, formatCount, timeAgo } from "@/lib/confessions";
 import type { ConfessionWithMeta } from "@/lib/api";
 import { toggleReaction } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -64,7 +64,7 @@ export function ReactionRow({
 export function ConfessionCard({ confession }: { confession: ConfessionWithMeta }) {
   async function share() {
     const url = `${window.location.origin}/confession/${confession.number}`;
-    const payload = { title: `Confession #${confession.number}`, text: confession.body, url };
+    const payload = { title: `Confession ${formatConfessionId(confession.number)}`, text: confession.body, url };
     if (navigator.share) {
       try {
         await navigator.share(payload);
@@ -96,7 +96,7 @@ export function ConfessionCard({ confession }: { confession: ConfessionWithMeta 
           params={{ number: String(confession.number) }}
           className="tap font-mono font-semibold text-primary"
         >
-          #{confession.number}
+          {formatConfessionId(confession.number)}
         </Link>
         <button className="tap ml-auto text-muted-foreground" aria-label="More options">
           <MoreHorizontal className="h-4 w-4" />
@@ -109,7 +109,7 @@ export function ConfessionCard({ confession }: { confession: ConfessionWithMeta 
           params={{ number: String(confession.parent_number) }}
           className="tap mt-2 inline-block rounded-full bg-elevated px-2.5 py-1 text-[11px] text-muted-foreground"
         >
-          Adding to confession #{confession.parent_number}
+          Adding to confession {formatConfessionId(confession.parent_number)}
         </Link>
       )}
 

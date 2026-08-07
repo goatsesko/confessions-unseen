@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCommunities } from "@/lib/api";
 import { updateProfile, uploadImage } from "@/lib/messages";
+import { fetchFollowStats, fetchReputation } from "@/lib/social";
+
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -46,6 +48,19 @@ function ProfilePage() {
 
   const communities = useQuery({ queryKey: ["communities"], queryFn: fetchCommunities });
   const mine = (communities.data ?? []).filter((c) => user && c.memberIds.includes(user.id));
+
+  const stats = useQuery({
+    queryKey: ["follow-stats", user?.id ?? null, user?.id ?? null],
+    enabled: !!user,
+    queryFn: () => fetchFollowStats(user!.id, user!.id),
+  });
+
+  const reputation = useQuery({
+    queryKey: ["reputation", user?.id ?? null],
+    enabled: !!user,
+    queryFn: () => fetchReputation(user!.id),
+  });
+
 
   const comments = useQuery({
     queryKey: ["my-comments", user?.id],
@@ -139,10 +154,14 @@ function ProfilePage() {
             View public profile
           </Link>
         )}
-        <div className="mt-4 flex justify-center gap-8 text-sm">
+        <div className="mt-4 flex flex-wrap justify-center gap-6 text-sm">
+          <Stat label="Followers" value={stats.data?.followers ?? 0} />
+          <Stat label="Following" value={stats.data?.following ?? 0} />
+          <Stat label="Reputation" value={reputation.data ?? 0} />
           <Stat label="Communities" value={mine.length} />
           <Stat label="Comments" value={comments.data?.length ?? 0} />
         </div>
+
         <button
           onClick={() => supabase.auth.signOut()}
           className="tap mt-4 inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs text-muted-foreground"
