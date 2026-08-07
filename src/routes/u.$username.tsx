@@ -1,11 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { Loader2, MessageCircle, MapPin } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Ban, Flag, Loader2, MessageCircle, MapPin } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProfileByUsername, getOrCreateConversation } from "@/lib/messages";
+import { fetchBlock, fetchFollowStats, fetchReputation, reportContent, toggleBlock, toggleFollow } from "@/lib/social";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/u/$username")({
   head: ({ params }) => ({
@@ -28,31 +31,81 @@ function PublicProfilePage() {
   const { username } = Route.useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const qc = useQueryClient();
 
   const profile = useQuery({
     queryKey: ["profile", username],
     queryFn: () => fetchProfileByUsername(username),
   });
 
+  const targetId = profile.data?.id;
+
+  const stats = useQuery({
+    queryKey: ["follow-stats", targetId, user?.id ?? null],
+    enabled: !!targetId,
+    queryFn: () => fetchFollowStats(targetId!, user?.id ?? null),
+  });
+
+  const reputation = useQuery({
+    queryKey: ["reputation", targetId],
+    enabled: !!targetId,
+    queryFn: () => fetchReputation(targetId!),
+  });
+
+  const block = useQuery({
+    queryKey: ["block", targetId, user?.id ?? null],
+    enabled: !!targetId && !!user && targetId !== user.id,
+    queryFn: () => fetchBlock(user!.id, targetId!),
+  });
+
   const comments = useQuery({
-    queryKey: ["profile-comments", profile.data?.id],
-    enabled: !!profile.data?.id,
+    queryKey: ["profile-comments", targetId],
+    enabled: !!targetId,
     queryFn: async () => {
       const { data } = await supabase
         .from("comments")
         .select("id, body, created_at")
-        .eq("user_id", profile.data!.id)
+        .eq("user_id", targetId!)
         .order("created_at", { ascending: false })
         .limit(20);
       return data ?? [];
     },
   });
 
+  const follow = useMutation({
+    mutationFn: () => toggleFollow(user!.id, targetId!, !!stats.data?.followedByMe),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["follow-stats"] }),
+    onError: () => toast.error("Couldn't update follow"),
+  });
+
+  const blockMutation = useMutation({
+    mutationFn: () => toggleBlock(user!.id, targetId!, !!block.data?.iBlocked),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["block"] });
+      toast.success(block.data?.iBlocked ? "Unblocked" : "Blocked");
+    },
+  });
+
   async function message() {
     if (!user) return navigate({ to: "/auth" });
-    const id = await getOrCreateConversation(user.id, profile.data!.id);
+    if (block.data?.iBlocked || block.data?.blockedMe) {
+      toast.error("You can't message this comrade");
+      return;
+    }
+    const id = await getOrCreateConversation(user.id, targetId!);
     navigate({ to: "/chat/$id", params: { id } });
   }
+
+  async function report() {
+    await reportContent({
+      targetType: "user",
+      targetId: targetId!,
+      reason: "flagged by user",
+      reporterId: user?.id ?? null,
+    });
+    toast.success("Reported. Thanks for keeping it safe.");
+  }
+
 
   if (profile.isLoading) {
     return (
