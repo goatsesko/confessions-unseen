@@ -224,3 +224,12 @@ function PublicProfilePage() {
     </AppShell>
   );
 }
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <p className="font-display text-lg font-extrabold">{value}</p>
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
