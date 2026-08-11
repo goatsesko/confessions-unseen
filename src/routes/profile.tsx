@@ -213,6 +213,36 @@ function ProfilePage() {
             className="h-5 w-5 accent-primary"
           />
         </label>
+
+        <div className="space-y-2 rounded-xl border border-border bg-card p-3 text-left">
+          <p className="text-xs text-muted-foreground">Who can message me?</p>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["everyone", "Everyone"],
+                ["followers", "Followers only"],
+                ["following", "People I follow"],
+                ["nobody", "Nobody"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setPrivacy(value)}
+                className={
+                  "tap rounded-full border px-3 py-1.5 text-xs " +
+                  (privacy === value ? "border-primary text-primary" : "border-border text-muted-foreground")
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <Toggle label="Show online status" checked={showOnline} onChange={setShowOnline} />
+          <Toggle label="Show read receipts" checked={showReceipts} onChange={setShowReceipts} />
+          <Toggle label="Allow image messages" checked={allowImages} onChange={setAllowImages} />
+          <Toggle label="Allow voice messages" checked={allowVoice} onChange={setAllowVoice} />
+        </div>
+
         <button
           onClick={() => save.mutate()}
           disabled={save.isPending}
