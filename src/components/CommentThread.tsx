@@ -311,9 +311,12 @@ function CommentItem({
                 </button>
               </>
             ) : (
-              <button onClick={() => onReport(node)} className="tap" aria-label="Report comment">
-                <Flag className="h-3.5 w-3.5" />
-              </button>
+              <>
+                <MessageCommenter username={node.username} peerId={node.user_id} viewerId={viewerId} />
+                <button onClick={() => onReport(node)} className="tap" aria-label="Report comment">
+                  <Flag className="h-3.5 w-3.5" />
+                </button>
+              </>
             )}
           </div>
         </div>
