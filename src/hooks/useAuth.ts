@@ -10,6 +10,11 @@ export type Profile = {
   display_name: string | null;
   location: string | null;
   open_to_chat: boolean;
+  msg_privacy: "everyone" | "followers" | "following" | "nobody";
+  show_online: boolean;
+  show_read_receipts: boolean;
+  allow_images: boolean;
+  allow_voice: boolean;
 };
 
 export function useAuth() {
@@ -37,7 +42,9 @@ export function useAuth() {
     let cancelled = false;
     supabase
       .from("profiles")
-      .select("id, username, bio, avatar_url, display_name, location, open_to_chat")
+      .select(
+        "id, username, bio, avatar_url, display_name, location, open_to_chat, msg_privacy, show_online, show_read_receipts, allow_images, allow_voice",
+      )
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => {

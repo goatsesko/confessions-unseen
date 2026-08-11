@@ -36,6 +36,11 @@ function ProfilePage() {
   const [displayName, setDisplayName] = useState("");
   const [location, setLocation] = useState("");
   const [openToChat, setOpenToChat] = useState(true);
+  const [privacy, setPrivacy] = useState<"everyone" | "followers" | "following" | "nobody">("everyone");
+  const [showOnline, setShowOnline] = useState(true);
+  const [showReceipts, setShowReceipts] = useState(true);
+  const [allowImages, setAllowImages] = useState(true);
+  const [allowVoice, setAllowVoice] = useState(true);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
@@ -44,6 +49,11 @@ function ProfilePage() {
     setDisplayName(profile.display_name ?? "");
     setLocation(profile.location ?? "");
     setOpenToChat(profile.open_to_chat ?? true);
+    setPrivacy(profile.msg_privacy ?? "everyone");
+    setShowOnline(profile.show_online ?? true);
+    setShowReceipts(profile.show_read_receipts ?? true);
+    setAllowImages(profile.allow_images ?? true);
+    setAllowVoice(profile.allow_voice ?? true);
   }, [profile?.id]);
 
   const communities = useQuery({ queryKey: ["communities"], queryFn: fetchCommunities });
@@ -83,6 +93,11 @@ function ProfilePage() {
         display_name: displayName.trim() || null,
         location: location.trim() || null,
         open_to_chat: openToChat,
+        msg_privacy: privacy,
+        show_online: showOnline,
+        show_read_receipts: showReceipts,
+        allow_images: allowImages,
+        allow_voice: allowVoice,
       }),
     onSuccess: (data) => {
       setProfile(data);
@@ -213,6 +228,36 @@ function ProfilePage() {
             className="h-5 w-5 accent-primary"
           />
         </label>
+
+        <div className="space-y-2 rounded-xl border border-border bg-card p-3 text-left">
+          <p className="text-xs text-muted-foreground">Who can message me?</p>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["everyone", "Everyone"],
+                ["followers", "Followers only"],
+                ["following", "People I follow"],
+                ["nobody", "Nobody"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setPrivacy(value)}
+                className={
+                  "tap rounded-full border px-3 py-1.5 text-xs " +
+                  (privacy === value ? "border-primary text-primary" : "border-border text-muted-foreground")
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <Toggle label="Show online status" checked={showOnline} onChange={setShowOnline} />
+          <Toggle label="Show read receipts" checked={showReceipts} onChange={setShowReceipts} />
+          <Toggle label="Allow image messages" checked={allowImages} onChange={setAllowImages} />
+          <Toggle label="Allow voice messages" checked={allowVoice} onChange={setAllowVoice} />
+        </div>
+
         <button
           onClick={() => save.mutate()}
           disabled={save.isPending}
@@ -256,5 +301,19 @@ function Stat({ label, value }: { label: string; value: number }) {
       <p className="font-display text-lg font-extrabold">{value}</p>
       <p className="text-[11px] text-muted-foreground">{label}</p>
     </div>
+  );
+}
+
+function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex items-center justify-between text-sm">
+      <span>{label}</span>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-5 w-5 accent-primary"
+      />
+    </label>
   );
 }

@@ -282,26 +282,35 @@ export type Database = {
       conversation_members: {
         Row: {
           accepted: boolean
+          archived: boolean
+          cleared_at: string | null
           conversation_id: string
           created_at: string
           id: string
           last_read_at: string
+          muted: boolean
           user_id: string
         }
         Insert: {
           accepted?: boolean
+          archived?: boolean
+          cleared_at?: string | null
           conversation_id: string
           created_at?: string
           id?: string
           last_read_at?: string
+          muted?: boolean
           user_id: string
         }
         Update: {
           accepted?: boolean
+          archived?: boolean
+          cleared_at?: string | null
           conversation_id?: string
           created_at?: string
           id?: string
           last_read_at?: string
+          muted?: boolean
           user_id?: string
         }
         Relationships: [
@@ -401,6 +410,7 @@ export type Database = {
           body: string
           conversation_id: string
           created_at: string
+          delivered_at: string | null
           id: string
           image_url: string | null
           read_at: string | null
@@ -412,6 +422,7 @@ export type Database = {
           body?: string
           conversation_id: string
           created_at?: string
+          delivered_at?: string | null
           id?: string
           image_url?: string | null
           read_at?: string | null
@@ -423,6 +434,7 @@ export type Database = {
           body?: string
           conversation_id?: string
           created_at?: string
+          delivered_at?: string | null
           id?: string
           image_url?: string | null
           read_at?: string | null
@@ -482,37 +494,52 @@ export type Database = {
       profiles: {
         Row: {
           age_confirmed_at: string | null
+          allow_images: boolean
+          allow_voice: boolean
           avatar_url: string | null
           bio: string | null
           created_at: string
           display_name: string | null
           id: string
           location: string | null
+          msg_privacy: string
           open_to_chat: boolean
+          show_online: boolean
+          show_read_receipts: boolean
           updated_at: string
           username: string
         }
         Insert: {
           age_confirmed_at?: string | null
+          allow_images?: boolean
+          allow_voice?: boolean
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
           display_name?: string | null
           id: string
           location?: string | null
+          msg_privacy?: string
           open_to_chat?: boolean
+          show_online?: boolean
+          show_read_receipts?: boolean
           updated_at?: string
           username: string
         }
         Update: {
           age_confirmed_at?: string | null
+          allow_images?: boolean
+          allow_voice?: boolean
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
           location?: string | null
+          msg_privacy?: string
           open_to_chat?: boolean
+          show_online?: boolean
+          show_read_receipts?: boolean
           updated_at?: string
           username?: string
         }

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { Flag, Heart, Loader2, Pencil, Send, Trash2 } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { Flag, Heart, Loader2, MessageCircle, Pencil, Send, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -15,6 +15,7 @@ import {
   type CommentSort,
   type VoteKind,
 } from "@/lib/api";
+import { canMessage, fetchProfileById, getOrCreateConversation } from "@/lib/messages";
 import { reportContent } from "@/lib/social";
 import { timeAgo } from "@/lib/confessions";
 import { useAuth } from "@/hooks/useAuth";
@@ -311,9 +312,12 @@ function CommentItem({
                 </button>
               </>
             ) : (
-              <button onClick={() => onReport(node)} className="tap" aria-label="Report comment">
-                <Flag className="h-3.5 w-3.5" />
-              </button>
+              <>
+                <MessageCommenter username={node.username} peerId={node.user_id} viewerId={viewerId} />
+                <button onClick={() => onReport(node)} className="tap" aria-label="Report comment">
+                  <Flag className="h-3.5 w-3.5" />
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -336,5 +340,47 @@ function CommentItem({
         </div>
       )}
     </div>
+  );
+}
+
+/** Lets a signed-in comrade privately DM a helpful commenter. Never used for confession authors. */
+function MessageCommenter({
+  username,
+  peerId,
+  viewerId,
+}: {
+  username: string;
+  peerId: string;
+  viewerId: string | null;
+}) {
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
+  if (!viewerId || viewerId === peerId) return null;
+  return (
+    <button
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          const peer = await fetchProfileById(peerId);
+          if (!peer) throw new Error("missing");
+          const gate = await canMessage(viewerId, peer);
+          if (!gate.allowed) {
+            toast.error(gate.reason);
+            return;
+          }
+          const id = await getOrCreateConversation(viewerId, peerId);
+          navigate({ to: "/chat/$id", params: { id } });
+        } catch {
+          toast.error("Couldn't open that chat");
+        } finally {
+          setBusy(false);
+        }
+      }}
+      className="tap flex items-center gap-1"
+      aria-label={`Message @${username}`}
+    >
+      <MessageCircle className="h-3.5 w-3.5" /> Message
+    </button>
   );
 }
