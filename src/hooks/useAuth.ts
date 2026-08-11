@@ -10,6 +10,11 @@ export type Profile = {
   display_name: string | null;
   location: string | null;
   open_to_chat: boolean;
+  msg_privacy: "everyone" | "followers" | "following" | "nobody";
+  show_online: boolean;
+  show_read_receipts: boolean;
+  allow_images: boolean;
+  allow_voice: boolean;
 };
 
 export function useAuth() {
