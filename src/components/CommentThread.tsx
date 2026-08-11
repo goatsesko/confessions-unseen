@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { Flag, Heart, Loader2, Pencil, Send, Trash2 } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { Flag, Heart, Loader2, MessageCircle, Pencil, Send, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
