@@ -36,6 +36,11 @@ function ProfilePage() {
   const [displayName, setDisplayName] = useState("");
   const [location, setLocation] = useState("");
   const [openToChat, setOpenToChat] = useState(true);
+  const [privacy, setPrivacy] = useState<"everyone" | "followers" | "following" | "nobody">("everyone");
+  const [showOnline, setShowOnline] = useState(true);
+  const [showReceipts, setShowReceipts] = useState(true);
+  const [allowImages, setAllowImages] = useState(true);
+  const [allowVoice, setAllowVoice] = useState(true);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
@@ -44,6 +49,11 @@ function ProfilePage() {
     setDisplayName(profile.display_name ?? "");
     setLocation(profile.location ?? "");
     setOpenToChat(profile.open_to_chat ?? true);
+    setPrivacy(profile.msg_privacy ?? "everyone");
+    setShowOnline(profile.show_online ?? true);
+    setShowReceipts(profile.show_read_receipts ?? true);
+    setAllowImages(profile.allow_images ?? true);
+    setAllowVoice(profile.allow_voice ?? true);
   }, [profile?.id]);
 
   const communities = useQuery({ queryKey: ["communities"], queryFn: fetchCommunities });
