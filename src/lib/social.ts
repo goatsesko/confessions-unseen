@@ -74,7 +74,7 @@ export async function notify(input: {
   body: string;
   link: string | null;
 }) {
-  if (input.userId === input.actorId) return;
+  if (!input.actorId || input.userId === input.actorId) return;
   await supabase.from("notifications").insert({
     user_id: input.userId,
     actor_id: input.actorId,
@@ -146,6 +146,7 @@ export async function reportContent(input: {
   reason: string;
   reporterId: string | null;
 }) {
+  if (!input.reporterId) throw new Error("Please sign in to submit a report.");
   const { error } = await supabase.from("reports").insert({
     target_type: input.targetType,
     target_id: input.targetId,
