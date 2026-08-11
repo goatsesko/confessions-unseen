@@ -93,6 +93,11 @@ function ProfilePage() {
         display_name: displayName.trim() || null,
         location: location.trim() || null,
         open_to_chat: openToChat,
+        msg_privacy: privacy,
+        show_online: showOnline,
+        show_read_receipts: showReceipts,
+        allow_images: allowImages,
+        allow_voice: allowVoice,
       }),
     onSuccess: (data) => {
       setProfile(data);
@@ -296,5 +301,19 @@ function Stat({ label, value }: { label: string; value: number }) {
       <p className="font-display text-lg font-extrabold">{value}</p>
       <p className="text-[11px] text-muted-foreground">{label}</p>
     </div>
+  );
+}
+
+function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex items-center justify-between text-sm">
+      <span>{label}</span>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-5 w-5 accent-primary"
+      />
+    </label>
   );
 }
