@@ -1,12 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowLeft, Check, Loader2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, Loader2, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { BottomNav } from "@/components/AppShell";
 import { CATEGORIES, extractParentNumber, maskIdentifiers } from "@/lib/confessions";
 import { createConfession, fetchCommunities } from "@/lib/api";
+import { checkContent, hasBlockingIssue, isDuplicate, rateLimit } from "@/lib/moderation";
 import { cn } from "@/lib/utils";
 
 type ComposeSearch = { addTo?: number | undefined };
@@ -36,19 +37,26 @@ function Compose() {
 
   const communities = useQuery({ queryKey: ["communities"], queryFn: fetchCommunities });
 
+  const issues = checkContent(body);
+  const blocked = hasBlockingIssue(issues);
+
   const post = useMutation({
-    mutationFn: () =>
-      createConfession({
+    mutationFn: async () => {
+      const limited = rateLimit("confession", 3, 10 * 60 * 1000);
+      if (limited) throw new Error(limited);
+      if (isDuplicate("confession", body.trim())) throw new Error("You already posted this confession.");
+      return createConfession({
         body: maskIdentifiers(body.trim()),
         category,
         communityId,
         parentNumber: addTo ?? extractParentNumber(body),
-      }),
+      });
+    },
     onSuccess: (number) => {
       setPosted(number);
       setTimeout(() => navigate({ to: "/confession/$number", params: { number: String(number) } }), 1400);
     },
-    onError: () => toast.error("Couldn't post that. Try again."),
+    onError: (err: Error) => toast.error(err.message || "Couldn't post that. Try again."),
   });
 
   if (posted !== null) {
@@ -79,7 +87,7 @@ function Compose() {
           </button>
           <h1 className="font-display text-base font-bold">New confession</h1>
           <button
-            disabled={body.trim().length < 3 || post.isPending}
+            disabled={body.trim().length < 3 || blocked || post.isPending}
             onClick={() => post.mutate()}
             className="tap ml-auto flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-extrabold uppercase tracking-wide text-primary-foreground disabled:opacity-40"
           >
@@ -103,7 +111,28 @@ function Compose() {
           placeholder="Say the thing you can't say out loud…"
           className="min-h-52 w-full resize-none bg-transparent font-display text-xl font-semibold leading-snug outline-none placeholder:text-muted-foreground/60"
         />
-        <div className="mb-6 text-right text-xs text-muted-foreground">{body.length}/5000</div>
+        <div className="mb-3 text-right text-xs text-muted-foreground">{body.length}/5000</div>
+
+        {issues.length > 0 && (
+          <div className="mb-6 space-y-2" role="status">
+            {issues.map((issue, i) => (
+              <p
+                key={i}
+                className={cn(
+                  "flex items-start gap-2 rounded-xl px-3 py-2 text-xs",
+                  issue.level === "block" ? "bg-destructive/15 text-destructive" : "bg-elevated text-muted-foreground",
+                )}
+              >
+                {issue.level === "block" ? (
+                  <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                ) : (
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                )}
+                {issue.message}
+              </p>
+            ))}
+          </div>
+        )}
 
         <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Category</p>
         <div className="mb-6 flex flex-wrap gap-2">
