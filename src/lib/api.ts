@@ -21,7 +21,10 @@ export type ConfessionWithMeta = Confession & {
   mine: ReactionKind[];
   commentCount: number;
   threadCount: number;
+  repostCount: number;
+  repostedByMe: boolean;
 };
+
 
 const EMPTY: Record<ReactionKind, number> = {
   relatable: 0,
