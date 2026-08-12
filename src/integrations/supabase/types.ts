@@ -243,6 +243,7 @@ export type Database = {
           is_pinned: boolean
           number: number
           parent_number: number | null
+          status: string
           views: number
         }
         Insert: {
@@ -255,6 +256,7 @@ export type Database = {
           is_pinned?: boolean
           number?: number
           parent_number?: number | null
+          status?: string
           views?: number
         }
         Update: {
@@ -267,6 +269,7 @@ export type Database = {
           is_pinned?: boolean
           number?: number
           parent_number?: number | null
+          status?: string
           views?: number
         }
         Relationships: [
@@ -497,6 +500,7 @@ export type Database = {
           allow_images: boolean
           allow_voice: boolean
           avatar_url: string | null
+          banned: boolean
           bio: string | null
           created_at: string
           display_name: string | null
@@ -506,6 +510,7 @@ export type Database = {
           open_to_chat: boolean
           show_online: boolean
           show_read_receipts: boolean
+          suspended_until: string | null
           updated_at: string
           username: string
         }
@@ -514,6 +519,7 @@ export type Database = {
           allow_images?: boolean
           allow_voice?: boolean
           avatar_url?: string | null
+          banned?: boolean
           bio?: string | null
           created_at?: string
           display_name?: string | null
@@ -523,6 +529,7 @@ export type Database = {
           open_to_chat?: boolean
           show_online?: boolean
           show_read_receipts?: boolean
+          suspended_until?: string | null
           updated_at?: string
           username: string
         }
@@ -531,6 +538,7 @@ export type Database = {
           allow_images?: boolean
           allow_voice?: boolean
           avatar_url?: string | null
+          banned?: boolean
           bio?: string | null
           created_at?: string
           display_name?: string | null
@@ -540,6 +548,7 @@ export type Database = {
           open_to_chat?: boolean
           show_online?: boolean
           show_read_receipts?: boolean
+          suspended_until?: string | null
           updated_at?: string
           username?: string
         }
@@ -575,15 +584,72 @@ export type Database = {
         }
         Relationships: []
       }
+      reposts: {
+        Row: {
+          confession_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          confession_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          confession_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reposts_confession_id_fkey"
+            columns: ["confession_id"]
+            isOneToOne: false
+            referencedRelation: "confessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      bump_confession_views: { Args: { _number: number }; Returns: undefined }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -710,6 +776,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
