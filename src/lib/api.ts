@@ -405,3 +405,93 @@ export async function toggleCommentVote(commentId: string, userId: string, kind:
   if (error) throw error;
 }
 
+
+/* ---------------------------------- search --------------------------------- */
+
+export async function searchUsers(q: string) {
+  const term = q.trim().replace(/^@/, "").toLowerCase();
+  if (term.length < 2) return [];
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, avatar_url, bio")
+    .ilike("username", `%${term}%`)
+    .limit(10);
+  return data ?? [];
+}
+
+/* ---------------------------------- admin ---------------------------------- */
+
+export async function isAdmin(userId: string | null | undefined) {
+  if (!userId) return false;
+  const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+  return !!data;
+}
+
+export async function fetchAdminConfessions(status: string) {
+  const { data, error } = await supabase
+    .from("confessions")
+    .select("*")
+    .eq("status", status)
+    .order("created_at", { ascending: false })
+    .limit(60);
+  if (error) throw error;
+  return (data ?? []) as Confession[];
+}
+
+export async function moderateConfession(
+  id: string,
+  patch: Partial<{ status: string; is_pinned: boolean; is_featured: boolean; body: string; category: string }>,
+) {
+  const { error } = await supabase.from("confessions").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteConfession(id: string) {
+  const { error } = await supabase.from("confessions").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export type AdminReport = {
+  id: string;
+  target_type: string;
+  target_id: string;
+  reason: string;
+  status: string;
+  created_at: string;
+};
+
+export async function fetchReports(status: string) {
+  const { data, error } = await supabase
+    .from("reports")
+    .select("id, target_type, target_id, reason, status, created_at")
+    .eq("status", status)
+    .order("created_at", { ascending: false })
+    .limit(80);
+  if (error) throw error;
+  return (data ?? []) as AdminReport[];
+}
+
+export async function resolveReport(id: string, status: "resolved" | "dismissed") {
+  const { error } = await supabase.from("reports").update({ status }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function moderateUser(userId: string, patch: { banned?: boolean; suspended_until?: string | null }) {
+  const { error } = await supabase.from("profiles").update(patch).eq("id", userId);
+  if (error) throw error;
+}
+
+export async function adminStats() {
+  const [confessions, comments, users, reports] = await Promise.all([
+    supabase.from("confessions").select("id", { count: "exact", head: true }),
+    supabase.from("comments").select("id", { count: "exact", head: true }),
+    supabase.from("profiles").select("id", { count: "exact", head: true }),
+    supabase.from("reports").select("id", { count: "exact", head: true }).eq("status", "open"),
+  ]);
+  return {
+    confessions: confessions.count ?? 0,
+    comments: comments.count ?? 0,
+    users: users.count ?? 0,
+    openReports: reports.count ?? 0,
+  };
+}
