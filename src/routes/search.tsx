@@ -85,7 +85,7 @@ function SearchPage() {
               params={{ username: p.username }}
               className="surface tap mb-3 flex items-center gap-3 p-3"
             >
-              <UserAvatar url={p.avatar_url} username={p.username} size={40} />
+              <UserAvatar avatarPath={p.avatar_url} username={p.username} size="md" />
               <div className="min-w-0">
                 <p className="font-display font-bold">@{p.username}</p>
                 {p.bio && <p className="truncate text-xs text-muted-foreground">{p.bio}</p>}
