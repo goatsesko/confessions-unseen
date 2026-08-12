@@ -1,11 +1,14 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Eye, MessageCircle, MoreHorizontal, Repeat2, Share2 } from "lucide-react";
+import { Eye, MessageCircle, Repeat2, Share2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ShareSheet } from "@/components/ShareSheet";
+import { ReportDialog } from "@/components/ReportDialog";
+import { useAuth } from "@/hooks/useAuth";
 import { REACTIONS, type ReactionKind, formatConfessionId, formatCount, timeAgo } from "@/lib/confessions";
 import type { ConfessionWithMeta } from "@/lib/api";
-import { toggleReaction } from "@/lib/api";
+import { toggleReaction, toggleRepost } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export function ReactionRow({
@@ -28,6 +31,8 @@ export function ReactionRow({
       await toggleReaction(confession.id, kind, active);
       onChanged?.();
     } catch {
+      setMine(mine);
+      setCounts(counts);
       toast.error("Couldn't save that reaction");
     }
   }
@@ -43,12 +48,11 @@ export function ReactionRow({
             key={r.kind}
             whileTap={{ scale: 0.82 }}
             onClick={() => react(r.kind)}
-            aria-label={r.label}
+            aria-label={`${r.label}${active ? " (added)" : ""}`}
+            aria-pressed={active}
             className={cn(
               "tap flex items-center rounded-full",
-              size === "lg"
-                ? "flex-col gap-1 px-3 py-1.5 text-sm"
-                : "gap-1.5 py-0.5 text-[13px] font-semibold",
+              size === "lg" ? "flex-col gap-1 px-3 py-1.5 text-sm" : "gap-1.5 py-0.5 text-[13px] font-semibold",
               active ? "text-primary" : "text-muted-foreground",
             )}
           >
@@ -61,21 +65,54 @@ export function ReactionRow({
   );
 }
 
-export function ConfessionCard({ confession }: { confession: ConfessionWithMeta }) {
-  async function share() {
-    const url = `${window.location.origin}/confession/${confession.number}`;
-    const payload = { title: `Confession ${formatConfessionId(confession.number)}`, text: confession.body, url };
-    if (navigator.share) {
-      try {
-        await navigator.share(payload);
-        return;
-      } catch {
-        /* dismissed */
-      }
+export function RepostButton({
+  confession,
+  className,
+}: {
+  confession: ConfessionWithMeta;
+  className?: string | undefined;
+}) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [count, setCount] = useState(confession.repostCount);
+  const [mine, setMine] = useState(confession.repostedByMe);
+
+  async function toggle() {
+    if (!user) {
+      navigate({ to: "/auth" });
+      return;
     }
-    await navigator.clipboard.writeText(url);
-    toast.success("Link copied");
+    const next = !mine;
+    setMine(next);
+    setCount((c) => Math.max(0, c + (next ? 1 : -1)));
+    try {
+      await toggleRepost(confession.id, user.id, !next);
+      toast.success(next ? "Reposted to your profile" : "Repost removed");
+    } catch {
+      setMine(!next);
+      setCount((c) => Math.max(0, c + (next ? -1 : 1)));
+      toast.error("Couldn't repost that");
+    }
   }
+
+  return (
+    <button
+      onClick={toggle}
+      aria-pressed={mine}
+      aria-label="Repost this confession"
+      className={cn("tap flex items-center gap-1.5", mine ? "text-primary" : "", className)}
+    >
+      <Repeat2 className="h-4 w-4" />
+      {formatCount(count)}
+    </button>
+  );
+}
+
+export function ConfessionCard({ confession }: { confession: ConfessionWithMeta }) {
+  const { user } = useAuth();
+  const reporterId = user?.id ?? null;
+  const [share, setShare] = useState(false);
+  const [report, setReport] = useState(false);
 
   return (
     <motion.article
@@ -84,12 +121,15 @@ export function ConfessionCard({ confession }: { confession: ConfessionWithMeta 
       transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
       className="surface mb-3 p-4"
     >
-      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
         {confession.is_pinned && (
           <span className="rounded-full bg-primary/15 px-2 py-0.5 font-semibold text-primary">PINNED</span>
         )}
+        {confession.is_featured && (
+          <span className="rounded-full bg-primary/15 px-2 py-0.5 font-semibold text-primary">FEATURED</span>
+        )}
         <span className="font-medium text-foreground/70">{confession.category}</span>
-        <span>•</span>
+        <span aria-hidden>•</span>
         <span>{timeAgo(confession.created_at)}</span>
         <Link
           to="/confession/$number"
@@ -98,9 +138,6 @@ export function ConfessionCard({ confession }: { confession: ConfessionWithMeta 
         >
           {formatConfessionId(confession.number)}
         </Link>
-        <button className="tap ml-auto text-muted-foreground" aria-label="More options">
-          <MoreHorizontal className="h-4 w-4" />
-        </button>
       </div>
 
       {confession.parent_number && (
@@ -114,7 +151,7 @@ export function ConfessionCard({ confession }: { confession: ConfessionWithMeta 
       )}
 
       <Link to="/confession/$number" params={{ number: String(confession.number) }} className="block">
-        <p className="mt-2 whitespace-pre-wrap font-display text-[17px] font-semibold leading-snug">
+        <p className="mt-2 whitespace-pre-wrap break-words font-display text-[17px] font-semibold leading-snug">
           {confession.body}
         </p>
       </Link>
@@ -128,35 +165,46 @@ export function ConfessionCard({ confession }: { confession: ConfessionWithMeta 
           to="/confession/$number"
           params={{ number: String(confession.number) }}
           className="tap flex items-center gap-1.5"
+          aria-label="Read comments"
         >
           <MessageCircle className="h-4 w-4" />
           {formatCount(confession.commentCount)}
         </Link>
-        <Link
-          to="/compose"
-          search={{ addTo: confession.number }}
-          className="tap flex items-center gap-1.5"
-          aria-label="Add to this confession"
-        >
-          <Repeat2 className="h-4 w-4" />
-          {formatCount(confession.threadCount)}
-        </Link>
-        <button onClick={share} className="tap flex items-center gap-1.5">
+        <RepostButton confession={confession} />
+        <button onClick={() => setShare(true)} className="tap flex items-center gap-1.5" aria-label="Share confession">
           <Share2 className="h-4 w-4" />
           Share
         </button>
         <span className="ml-auto flex items-center gap-1.5">
-          <Eye className="h-4 w-4" />
+          <Eye className="h-4 w-4" aria-hidden />
+          <span className="sr-only">Views:</span>
           {formatCount(confession.views)}
         </span>
       </div>
+
+      <ShareSheet
+        open={share}
+        onClose={() => setShare(false)}
+        number={confession.number}
+        body={confession.body}
+        category={confession.category}
+        onReport={() => setReport(true)}
+      />
+      <ReportDialog
+        open={report}
+        onClose={() => setReport(false)}
+        targetType="confession"
+        targetId={confession.id}
+        reporterId={reporterId}
+        label={`Confession ${formatConfessionId(confession.number)}`}
+      />
     </motion.article>
   );
 }
 
 export function ConfessionSkeleton() {
   return (
-    <div className="surface mb-3 animate-pulse p-4">
+    <div className="surface mb-3 animate-pulse p-4" aria-hidden>
       <div className="h-3 w-32 rounded bg-elevated" />
       <div className="mt-3 h-4 w-full rounded bg-elevated" />
       <div className="mt-2 h-4 w-3/4 rounded bg-elevated" />

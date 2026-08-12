@@ -4,7 +4,8 @@ import { Search as SearchIcon } from "lucide-react";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ConfessionCard } from "@/components/ConfessionCard";
-import { fetchCommunities, fetchFeed } from "@/lib/api";
+import { UserAvatar } from "@/components/UserAvatar";
+import { fetchCommunities, fetchConfession, fetchFeed, searchUsers } from "@/lib/api";
 
 export const Route = createFileRoute("/search")({
   head: () => ({
@@ -24,10 +25,23 @@ function SearchPage() {
   const [q, setQ] = useState("");
   const results = useQuery({
     queryKey: ["search", q],
-    queryFn: () => fetchFeed({ sort: "recent", search: q }),
+    queryFn: () => fetchFeed({ sort: "latest", search: q }),
     enabled: q.trim().length > 1,
   });
   const communities = useQuery({ queryKey: ["communities"], queryFn: fetchCommunities });
+  const people = useQuery({
+    queryKey: ["search-users", q],
+    queryFn: () => searchUsers(q),
+    enabled: q.trim().replace(/^@/, "").length > 1,
+  });
+
+  // Typing a confession number (with or without #/leading zeros) jumps straight to it.
+  const numeric = Number(q.trim().replace(/^#/, ""));
+  const byNumber = useQuery({
+    queryKey: ["search-number", numeric],
+    queryFn: () => fetchConfession(numeric),
+    enabled: Number.isFinite(numeric) && numeric > 0,
+  });
 
   const matchedCommunities = (communities.data ?? []).filter(
     (c) => q.trim().length > 1 && c.name.toLowerCase().includes(q.toLowerCase()),
@@ -63,6 +77,21 @@ function SearchPage() {
         </>
       ) : (
         <>
+          {byNumber.data && <ConfessionCard key={byNumber.data.id} confession={byNumber.data} />}
+          {(people.data ?? []).map((p) => (
+            <Link
+              key={p.id}
+              to="/u/$username"
+              params={{ username: p.username }}
+              className="surface tap mb-3 flex items-center gap-3 p-3"
+            >
+              <UserAvatar avatarPath={p.avatar_url} username={p.username} size="md" />
+              <div className="min-w-0">
+                <p className="font-display font-bold">@{p.username}</p>
+                {p.bio && <p className="truncate text-xs text-muted-foreground">{p.bio}</p>}
+              </div>
+            </Link>
+          ))}
           {matchedCommunities.map((c) => (
             <Link
               key={c.id}
@@ -78,9 +107,13 @@ function SearchPage() {
           {(results.data ?? []).map((c) => (
             <ConfessionCard key={c.id} confession={c} />
           ))}
-          {!results.isLoading && (results.data ?? []).length === 0 && matchedCommunities.length === 0 && (
-            <p className="py-10 text-center text-sm text-muted-foreground">Nothing found for "{q}".</p>
-          )}
+          {!results.isLoading &&
+            (results.data ?? []).length === 0 &&
+            matchedCommunities.length === 0 &&
+            (people.data ?? []).length === 0 &&
+            !byNumber.data && (
+              <p className="py-10 text-center text-sm text-muted-foreground">Nothing found for "{q}".</p>
+            )}
         </>
       )}
     </AppShell>

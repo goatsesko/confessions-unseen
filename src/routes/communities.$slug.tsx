@@ -28,7 +28,7 @@ function CommunityPage() {
 
   const feed = useQuery({
     queryKey: ["feed", "community", community?.id],
-    queryFn: () => fetchFeed({ sort: "recent", communityId: community!.id }),
+    queryFn: () => fetchFeed({ sort: "latest", communityId: community!.id }),
     enabled: !!community,
   });
 

@@ -1,11 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Bookmark, MoreHorizontal, Repeat2, Share2 } from "lucide-react";
-import { toast } from "sonner";
-import { ReactionRow } from "@/components/ConfessionCard";
+import { useEffect, useState } from "react";
+import { ArrowLeft, Eye, Flag, Repeat2, Share2 } from "lucide-react";
+import { ReactionRow, RepostButton } from "@/components/ConfessionCard";
 import { CommentThread } from "@/components/CommentThread";
-import { fetchConfession, fetchThread } from "@/lib/api";
-import { formatConfessionId, timeAgo } from "@/lib/confessions";
+import { ReportDialog } from "@/components/ReportDialog";
+import { ShareSheet } from "@/components/ShareSheet";
+import { useAuth } from "@/hooks/useAuth";
+import { bumpViews, fetchConfession, fetchThread } from "@/lib/api";
+import { formatConfessionId, formatCount, timeAgo } from "@/lib/confessions";
 
 export const Route = createFileRoute("/confession/$number")({
   head: ({ params }) => ({
@@ -32,24 +35,21 @@ function Centered({ text }: { text: string }) {
 function ConfessionDetail() {
   const { number } = Route.useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const n = Number(number);
+  const [share, setShare] = useState(false);
+  const [report, setReport] = useState(false);
 
-  const confession = useQuery({ queryKey: ["confession", n], queryFn: () => fetchConfession(n) });
+  const confession = useQuery({
+    queryKey: ["confession", n, user?.id ?? null],
+    queryFn: () => fetchConfession(n, user?.id ?? null),
+  });
   const thread = useQuery({ queryKey: ["thread", n], queryFn: () => fetchThread(n) });
 
-  async function share() {
-    const url = window.location.href;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `Confession #${n}`, url });
-        return;
-      } catch {
-        /* dismissed */
-      }
-    }
-    await navigator.clipboard.writeText(url);
-    toast.success("Link copied");
-  }
+  useEffect(() => {
+    if (Number.isFinite(n)) void bumpViews(n);
+  }, [n]);
+
 
   const c = confession.data;
 
@@ -62,11 +62,11 @@ function ConfessionDetail() {
           </button>
           <span className="font-mono text-sm font-bold text-primary">{formatConfessionId(n)}</span>
           <div className="ml-auto flex items-center gap-1 text-muted-foreground">
-            <button className="tap p-2" aria-label="Save">
-              <Bookmark className="h-5 w-5" />
+            <button onClick={() => setShare(true)} className="tap p-2" aria-label="Share confession">
+              <Share2 className="h-5 w-5" />
             </button>
-            <button className="tap p-2" aria-label="More">
-              <MoreHorizontal className="h-5 w-5" />
+            <button onClick={() => setReport(true)} className="tap p-2" aria-label="Report confession">
+              <Flag className="h-5 w-5" />
             </button>
           </div>
         </div>
@@ -77,7 +77,12 @@ function ConfessionDetail() {
           <div className="h-32 animate-pulse rounded-2xl bg-card" />
         ) : (
           <>
-            <p className="text-xs text-muted-foreground">{timeAgo(c.created_at)}</p>
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              {timeAgo(c.created_at)}
+              <span aria-hidden>•</span>
+              <Eye className="h-3.5 w-3.5" aria-hidden />
+              {formatCount(c.views)} views
+            </p>
             {c.parent_number && (
               <Link
                 to="/confession/$number"
@@ -104,7 +109,8 @@ function ConfessionDetail() {
               >
                 <Repeat2 className="h-4 w-4" /> Add to {formatConfessionId(c.number)}
               </Link>
-              <button onClick={share} className="tap flex items-center gap-2">
+              <RepostButton confession={c} className="font-semibold" />
+              <button onClick={() => setShare(true)} className="tap flex items-center gap-2">
                 <Share2 className="h-4 w-4" /> Share
               </button>
             </div>
@@ -132,6 +138,23 @@ function ConfessionDetail() {
             )}
 
             <CommentThread confessionId={c.id} confessionNumber={c.number} />
+
+            <ShareSheet
+              open={share}
+              onClose={() => setShare(false)}
+              number={c.number}
+              body={c.body}
+              category={c.category}
+              onReport={() => setReport(true)}
+            />
+            <ReportDialog
+              open={report}
+              onClose={() => setReport(false)}
+              targetType="confession"
+              targetId={c.id}
+              reporterId={user?.id ?? null}
+              label={`Confession ${formatConfessionId(c.number)}`}
+            />
           </>
         )}
       </main>
