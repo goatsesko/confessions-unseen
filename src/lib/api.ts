@@ -121,23 +121,57 @@ function freshness(c: ConfessionWithMeta): number {
 }
 
 
-export async function fetchConfession(number: number) {
+export async function fetchConfession(number: number, viewerId: string | null = null) {
   const { data, error } = await supabase.from("confessions").select("*").eq("number", number).maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  const [decorated] = await decorate([data as Confession]);
+  const [decorated] = await decorate([data as Confession], viewerId);
   return decorated ?? null;
 }
 
-export async function fetchThread(number: number) {
+export async function fetchThread(number: number, viewerId: string | null = null) {
   const { data, error } = await supabase
     .from("confessions")
     .select("*")
     .eq("parent_number", number)
     .order("created_at", { ascending: true });
   if (error) throw error;
-  return decorate((data ?? []) as Confession[]);
+  return decorate((data ?? []) as Confession[], viewerId);
 }
+
+/** Counted once per device per confession. */
+export async function bumpViews(number: number) {
+  if (typeof window === "undefined") return;
+  const key = `cc_seen_${number}`;
+  if (window.sessionStorage.getItem(key)) return;
+  window.sessionStorage.setItem(key, "1");
+  await supabase.rpc("bump_confession_views", { _number: number });
+}
+
+export async function toggleRepost(confessionId: string, userId: string, reposted: boolean) {
+  if (reposted) {
+    const { error } = await supabase.from("reposts").delete().eq("confession_id", confessionId).eq("user_id", userId);
+    if (error) throw error;
+    return;
+  }
+  const { error } = await supabase.from("reposts").insert({ confession_id: confessionId, user_id: userId });
+  if (error) throw error;
+}
+
+/** Confessions a user has reposted — shown on their public profile. */
+export async function fetchReposts(userId: string, viewerId: string | null = null) {
+  const { data } = await supabase
+    .from("reposts")
+    .select("confession_id, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(30);
+  const ids = (data ?? []).map((r) => r.confession_id);
+  if (ids.length === 0) return [];
+  const { data: rows } = await supabase.from("confessions").select("*").in("id", ids).eq("status", "published");
+  return decorate((rows ?? []) as Confession[], viewerId);
+}
+
 
 export async function toggleReaction(confessionId: string, kind: ReactionKind, active: boolean) {
   const device_key = getDeviceKey();
