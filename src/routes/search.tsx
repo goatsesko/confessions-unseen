@@ -24,7 +24,7 @@ function SearchPage() {
   const [q, setQ] = useState("");
   const results = useQuery({
     queryKey: ["search", q],
-    queryFn: () => fetchFeed({ sort: "recent", search: q }),
+    queryFn: () => fetchFeed({ sort: "latest", search: q }),
     enabled: q.trim().length > 1,
   });
   const communities = useQuery({ queryKey: ["communities"], queryFn: fetchCommunities });

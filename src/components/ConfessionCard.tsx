@@ -109,6 +109,8 @@ export function RepostButton({
 }
 
 export function ConfessionCard({ confession }: { confession: ConfessionWithMeta }) {
+  const { user } = useAuth();
+  const reporterId = user?.id ?? null;
   const [share, setShare] = useState(false);
   const [report, setReport] = useState(false);
 
@@ -193,6 +195,8 @@ export function ConfessionCard({ confession }: { confession: ConfessionWithMeta 
         onClose={() => setReport(false)}
         targetType="confession"
         targetId={confession.id}
+        reporterId={reporterId}
+        label={`Confession ${formatConfessionId(confession.number)}`}
       />
     </motion.article>
   );
