@@ -13,7 +13,10 @@ export type Confession = {
   parent_number: number | null;
   views: number;
   is_pinned: boolean;
+  is_featured: boolean;
+  status: string;
   created_at: string;
+
 };
 
 export type ConfessionWithMeta = Confession & {
