@@ -32,16 +32,17 @@ const EMPTY: Record<ReactionKind, number> = {
   support: 0,
 };
 
-async function decorate(rows: Confession[]): Promise<ConfessionWithMeta[]> {
+async function decorate(rows: Confession[], viewerId: string | null): Promise<ConfessionWithMeta[]> {
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
   const numbers = rows.map((r) => r.number);
   const device = getDeviceKey();
 
-  const [reactions, comments, threads] = await Promise.all([
+  const [reactions, comments, threads, reposts] = await Promise.all([
     supabase.from("confession_reactions").select("confession_id, kind, device_key").in("confession_id", ids),
     supabase.from("comments").select("confession_id").in("confession_id", ids),
     supabase.from("confessions").select("parent_number").in("parent_number", numbers),
+    supabase.from("reposts").select("confession_id, user_id").in("confession_id", ids),
   ]);
 
   return rows.map((row) => {
@@ -52,36 +53,70 @@ async function decorate(rows: Confession[]): Promise<ConfessionWithMeta[]> {
       counts[r.kind as ReactionKind] += 1;
       if (r.device_key === device) mine.push(r.kind as ReactionKind);
     }
+    const rowReposts = (reposts.data ?? []).filter((r) => r.confession_id === row.id);
     return {
       ...row,
       reactions: counts,
       mine,
       commentCount: (comments.data ?? []).filter((c) => c.confession_id === row.id).length,
       threadCount: (threads.data ?? []).filter((t) => t.parent_number === row.number).length,
+      repostCount: rowReposts.length,
+      repostedByMe: !!viewerId && rowReposts.some((r) => r.user_id === viewerId),
     };
   });
 }
 
-export type FeedSort = "recent" | "trending" | "featured";
+export type FeedSort = "foryou" | "latest" | "trending";
+
+export const FEED_PAGE_SIZE = 20;
+
+/** Engagement score with time decay so fresh, good confessions can rise. */
+function trendScore(c: ConfessionWithMeta): number {
+  const hours = (Date.now() - new Date(c.created_at).getTime()) / 3_600_000;
+  const reactions = Object.values(c.reactions).reduce((a, b) => a + b, 0);
+  const raw = reactions * 2 + c.commentCount * 3 + c.threadCount * 4 + c.repostCount * 3 + c.views * 0.15;
+  return raw / Math.pow(hours + 2, 0.8);
+}
 
 export async function fetchFeed(opts: {
   sort: FeedSort;
   communityId?: string;
   search?: string;
+  viewerId?: string | null;
+  page?: number;
   limit?: number;
 }): Promise<ConfessionWithMeta[]> {
-  let query = supabase.from("confessions").select("*").limit(opts.limit ?? 30);
+  const limit = opts.limit ?? FEED_PAGE_SIZE;
+  const page = opts.page ?? 0;
+  // Trending & For You rank a recent window client-side, so pull a wider slice.
+  const ranked = opts.sort !== "latest" && !opts.search;
+  const from = ranked ? 0 : page * limit;
+  const to = ranked ? Math.max(120, (page + 1) * limit) - 1 : from + limit - 1;
+
+  let query = supabase.from("confessions").select("*").eq("status", "published");
   if (opts.communityId) query = query.eq("community_id", opts.communityId);
   if (opts.search) query = query.ilike("body", `%${opts.search}%`);
-  query =
-    opts.sort === "trending"
-      ? query.order("views", { ascending: false })
-      : query.order("is_pinned", { ascending: false }).order("created_at", { ascending: false });
+  query = query.order("is_pinned", { ascending: false }).order("created_at", { ascending: false }).range(from, to);
 
   const { data, error } = await query;
   if (error) throw error;
-  return decorate((data ?? []) as Confession[]);
+  const rows = await decorate((data ?? []) as Confession[], opts.viewerId ?? null);
+
+  if (!ranked) return rows;
+  const scored = [...rows].sort((a, b) => {
+    if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+    if (opts.sort === "trending") return trendScore(b) - trendScore(a);
+    // For You blends freshness with engagement.
+    return trendScore(b) * 0.7 + freshness(b) - (trendScore(a) * 0.7 + freshness(a));
+  });
+  return scored.slice(page * limit, (page + 1) * limit);
 }
+
+function freshness(c: ConfessionWithMeta): number {
+  const hours = (Date.now() - new Date(c.created_at).getTime()) / 3_600_000;
+  return 6 / (hours + 6);
+}
+
 
 export async function fetchConfession(number: number) {
   const { data, error } = await supabase.from("confessions").select("*").eq("number", number).maybeSingle();
