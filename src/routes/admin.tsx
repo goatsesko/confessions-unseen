@@ -398,7 +398,7 @@ function UsersTab() {
           return (
             <div key={u.id} className="rounded-2xl border border-border bg-card p-3">
               <div className="flex items-center gap-3">
-                <UserAvatar url={u.avatar_url} username={u.username} size="md" />
+                <UserAvatar avatarPath={u.avatar_url} username={u.username} size="md" />
                 <div className="min-w-0 flex-1">
                   <Link to="/u/$username" params={{ username: u.username }} className="block truncate text-sm font-semibold">
                     @{u.username}
@@ -457,7 +457,7 @@ function FoundersTab() {
         {(list.data ?? []).map((f) => (
           <div key={f.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
             <div className="font-display text-sm font-extrabold text-primary">#{f.slot}</div>
-            <UserAvatar url={f.avatar_url} username={f.username} size="md" />
+            <UserAvatar avatarPath={f.avatar_url} username={f.username} size="md" />
             <div className="min-w-0 flex-1">
               <Link to="/u/$username" params={{ username: f.username }} className="block truncate text-sm font-semibold">
                 @{f.username}
