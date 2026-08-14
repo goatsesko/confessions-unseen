@@ -498,3 +498,59 @@ export async function adminStats() {
     openReports: reports.count ?? 0,
   };
 }
+
+export type AdminUser = {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  banned: boolean;
+  suspended_until: string | null;
+  created_at: string;
+};
+
+export async function fetchAdminUsers(search = "") {
+  let q = supabase
+    .from("profiles")
+    .select("id, username, display_name, avatar_url, banned, suspended_until, created_at")
+    .order("created_at", { ascending: true })
+    .limit(60);
+  const term = search.trim().replace(/^@/, "").toLowerCase();
+  if (term.length > 0) q = q.ilike("username", `%${term}%`);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data ?? []) as AdminUser[];
+}
+
+/** The founder allow-list: the first 5 accounts to join are permanent admins. */
+export async function fetchFounders() {
+  const [{ data: profiles }, { data: roles }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url, banned, suspended_until, created_at")
+      .order("created_at", { ascending: true })
+      .limit(5),
+    supabase.from("user_roles").select("user_id, role").eq("role", "admin"),
+  ]);
+  const admins = new Set((roles ?? []).map((r) => r.user_id));
+  return ((profiles ?? []) as AdminUser[]).map((p, i) => ({ ...p, slot: i + 1, isAdmin: admins.has(p.id) }));
+}
+
+export async function deleteCommentAsAdmin(id: string) {
+  const { error } = await supabase.from("comments").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/** Resolves the human-readable subject of a report so moderators see context. */
+export async function fetchReportTarget(type: string, id: string) {
+  if (type === "confession") {
+    const { data } = await supabase.from("confessions").select("id, number, body, status").eq("id", id).maybeSingle();
+    return data ? { kind: "confession" as const, ...data } : null;
+  }
+  if (type === "comment") {
+    const { data } = await supabase.from("comments").select("id, body, user_id, confession_id").eq("id", id).maybeSingle();
+    return data ? { kind: "comment" as const, ...data } : null;
+  }
+  const { data } = await supabase.from("profiles").select("id, username, banned").eq("id", id).maybeSingle();
+  return data ? { kind: "user" as const, ...data } : null;
+}
