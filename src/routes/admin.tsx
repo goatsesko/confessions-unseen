@@ -123,7 +123,7 @@ function AdminPage() {
   );
 }
 
-function Stat({ label, value, accent }: { label: string; value?: number; accent?: boolean }) {
+function Stat({ label, value, accent }: { label: string; value?: number | undefined; accent?: boolean }) {
   return (
     <div className="rounded-xl border border-border bg-card px-2 py-2.5 text-center">
       <div className={cn("font-display text-base font-extrabold", accent && "text-primary")}>{value ?? "—"}</div>
@@ -398,7 +398,7 @@ function UsersTab() {
           return (
             <div key={u.id} className="rounded-2xl border border-border bg-card p-3">
               <div className="flex items-center gap-3">
-                <UserAvatar url={u.avatar_url} username={u.username} size={38} />
+                <UserAvatar url={u.avatar_url} username={u.username} size="md" />
                 <div className="min-w-0 flex-1">
                   <Link to="/u/$username" params={{ username: u.username }} className="block truncate text-sm font-semibold">
                     @{u.username}
@@ -457,7 +457,7 @@ function FoundersTab() {
         {(list.data ?? []).map((f) => (
           <div key={f.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
             <div className="font-display text-sm font-extrabold text-primary">#{f.slot}</div>
-            <UserAvatar url={f.avatar_url} username={f.username} size={36} />
+            <UserAvatar url={f.avatar_url} username={f.username} size="md" />
             <div className="min-w-0 flex-1">
               <Link to="/u/$username" params={{ username: f.username }} className="block truncate text-sm font-semibold">
                 @{f.username}
