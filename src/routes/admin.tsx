@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, Ban, Check, Flag, Pin, Sparkles, Star, Trash2, Undo2, X } from "lucide-react";
+import { AlertTriangle, Ban, Check, Flag, Pin, ScrollText, Sparkles, Star, Trash2, Undo2, X } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,6 +13,7 @@ import {
   deleteConfession,
   fetchAdminConfessions,
   fetchAdminUsers,
+  fetchAuditLogs,
   fetchFounders,
   fetchReports,
   fetchReportTarget,
@@ -21,6 +22,7 @@ import {
   moderateUser,
   resolveReport,
   type AdminReport,
+  type AuditLog,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -39,13 +41,14 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type Tab = "queue" | "reports" | "users" | "founders";
+type Tab = "queue" | "reports" | "users" | "founders" | "audit";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "queue", label: "Queue" },
   { key: "reports", label: "Reports" },
   { key: "users", label: "Members" },
   { key: "founders", label: "Founders" },
+  { key: "audit", label: "Audit Logs" },
 ];
 
 function AdminPage() {
@@ -118,6 +121,7 @@ function AdminPage() {
         {tab === "reports" && <ReportsTab />}
         {tab === "users" && <UsersTab />}
         {tab === "founders" && <FoundersTab />}
+        {tab === "audit" && <AuditTab />}
       </div>
     </AppShell>
   );
@@ -486,6 +490,168 @@ function FoundersTab() {
             </div>
           ))}
       </div>
+    </div>
+  );
+}
+
+
+/* -------------------------------- audit logs -------------------------------- */
+
+const AUDIT_ACTIONS = [
+  "pin",
+  "unpin",
+  "feature",
+  "unfeature",
+  "hide",
+  "restore",
+  "remove",
+  "delete",
+  "delete_comment",
+  "ban",
+  "unban",
+  "suspend",
+  "resolve_report",
+  "dismiss_report",
+];
+
+function AuditTab() {
+  const [search, setSearch] = useState("");
+  const [action, setAction] = useState("");
+  const [admin, setAdmin] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [sort, setSort] = useState<"newest" | "oldest">("newest");
+  const [page, setPage] = useState(0);
+
+  const filters = { search, action, admin, from, to, sort, page };
+  const logs = useQuery({
+    queryKey: ["audit-logs", filters],
+    queryFn: () => fetchAuditLogs(filters),
+  });
+
+  const reset = <T,>(setter: (v: T) => void) => (v: T) => {
+    setPage(0);
+    setter(v);
+  };
+
+  const total = logs.data?.total ?? 0;
+  const pageSize = logs.data?.pageSize ?? 20;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+
+  const inputCls =
+    "h-10 rounded-xl border border-border bg-card px-3 text-xs outline-none placeholder:text-muted-foreground";
+
+  return (
+    <div>
+      <div className="mb-3 rounded-2xl border border-border bg-card p-3">
+        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <ScrollText className="h-3.5 w-3.5 text-primary" /> Immutable moderation history
+        </div>
+        <input
+          value={search}
+          onChange={(e) => reset(setSearch)(e.target.value)}
+          placeholder="Search target, ID or admin"
+          className={cn(inputCls, "mt-2 w-full")}
+        />
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <select value={action} onChange={(e) => reset(setAction)(e.target.value)} className={inputCls}>
+            <option value="">All actions</option>
+            {AUDIT_ACTIONS.map((a) => (
+              <option key={a} value={a}>
+                {a.replace("_", " ")}
+              </option>
+            ))}
+          </select>
+          <input
+            value={admin}
+            onChange={(e) => reset(setAdmin)(e.target.value)}
+            placeholder="@admin"
+            className={inputCls}
+          />
+          <input type="date" value={from} onChange={(e) => reset(setFrom)(e.target.value)} className={inputCls} />
+          <input type="date" value={to} onChange={(e) => reset(setTo)(e.target.value)} className={inputCls} />
+        </div>
+        <div className="mt-2 flex items-center justify-between">
+          <button
+            onClick={() => setSort(sort === "newest" ? "oldest" : "newest")}
+            className="tap rounded-full bg-elevated px-3 py-1 text-[11px] font-semibold"
+          >
+            {sort === "newest" ? "Newest first" : "Oldest first"}
+          </button>
+          <span className="text-[11px] text-muted-foreground">{total} records</span>
+        </div>
+      </div>
+
+      {logs.isLoading && <SkeletonList />}
+      {!logs.isLoading && (logs.data?.rows ?? []).length === 0 && <Empty text="No audit records match these filters." />}
+
+      <div className="space-y-2">
+        {(logs.data?.rows ?? []).map((log) => (
+          <AuditRow key={log.id} log={log} />
+        ))}
+      </div>
+
+      {total > pageSize && (
+        <div className="mt-4 flex items-center justify-between">
+          <button
+            disabled={page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            className="tap rounded-full border border-border px-4 py-1.5 text-xs font-semibold disabled:opacity-40"
+          >
+            Previous
+          </button>
+          <span className="text-[11px] text-muted-foreground">
+            Page {page + 1} of {pages}
+          </span>
+          <button
+            disabled={page + 1 >= pages}
+            onClick={() => setPage((p) => p + 1)}
+            className="tap rounded-full border border-border px-4 py-1.5 text-xs font-semibold disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AuditRow({ log }: { log: AuditLog }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-2xl border border-border bg-card p-3">
+      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
+          {log.action.replace("_", " ")}
+        </span>
+        <span className="capitalize">{log.target_type}</span>
+        <span>· {timeAgo(log.created_at)}</span>
+      </div>
+      <p className="mt-1.5 truncate text-sm font-semibold">{log.target_label ?? log.target_id}</p>
+      <div className="mt-1 text-[11px] text-muted-foreground">
+        by <span className="text-foreground">@{log.admin_username ?? "admin"}</span> ·{" "}
+        {new Date(log.created_at).toLocaleString()}
+      </div>
+      <button onClick={() => setOpen(!open)} className="tap mt-2 text-[11px] font-semibold text-primary">
+        {open ? "Hide changes" : "View changes"}
+      </button>
+      {open && (
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <StateBlock title="Before" value={log.prev_state} />
+          <StateBlock title="After" value={log.new_state} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StateBlock({ title, value }: { title: string; value: unknown }) {
+  return (
+    <div className="rounded-xl bg-elevated p-2">
+      <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{title}</div>
+      <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all text-[10px] text-foreground/80">
+        {JSON.stringify(value ?? {}, null, 1)}
+      </pre>
     </div>
   );
 }
