@@ -441,17 +441,152 @@ export async function fetchAdminConfessions(status: string) {
   return (data ?? []) as Confession[];
 }
 
+/* -------------------------------- audit log -------------------------------- */
+
+export type AuditAction =
+  | "pin"
+  | "unpin"
+  | "feature"
+  | "unfeature"
+  | "hide"
+  | "restore"
+  | "remove"
+  | "delete"
+  | "delete_comment"
+  | "ban"
+  | "unban"
+  | "suspend"
+  | "resolve_report"
+  | "dismiss_report";
+
+export type AuditLog = {
+  id: string;
+  admin_id: string;
+  admin_username: string | null;
+  action: string;
+  target_type: string;
+  target_id: string;
+  target_label: string | null;
+  prev_state: Record<string, unknown>;
+  new_state: Record<string, unknown>;
+  created_at: string;
+};
+
+/** Append-only record of a moderation action. Never blocks the action itself. */
+export async function logAdminAction(entry: {
+  action: AuditAction;
+  target_type: "confession" | "comment" | "user" | "report";
+  target_id: string;
+  target_label?: string | null;
+  prev_state?: Record<string, unknown>;
+  new_state?: Record<string, unknown>;
+}) {
+  try {
+    const { data: auth } = await supabase.auth.getUser();
+    const admin = auth.user;
+    if (!admin) return;
+    const { data: profile } = await supabase.from("profiles").select("username").eq("id", admin.id).maybeSingle();
+    await supabase.from("admin_audit_logs").insert({
+      admin_id: admin.id,
+      admin_username: profile?.username ?? null,
+      action: entry.action,
+      target_type: entry.target_type,
+      target_id: entry.target_id,
+      target_label: entry.target_label ?? null,
+      prev_state: (entry.prev_state ?? {}) as never,
+      new_state: (entry.new_state ?? {}) as never,
+    });
+  } catch {
+    /* auditing must never break moderation */
+  }
+}
+
+function confessionActions(
+  prev: { status: string; is_pinned: boolean; is_featured: boolean } | null,
+  patch: Record<string, unknown>,
+): AuditAction[] {
+  const out: AuditAction[] = [];
+  if ("is_pinned" in patch) out.push(patch['is_pinned'] ? "pin" : "unpin");
+  if ("is_featured" in patch) out.push(patch['is_featured'] ? "feature" : "unfeature");
+  if ("status" in patch) {
+    const s = patch['status'];
+    out.push(s === "hidden" ? "hide" : s === "removed" ? "remove" : "restore");
+  }
+  if (out.length === 0 && prev) out.push("restore");
+  return out;
+}
+
+export async function fetchAuditLogs(opts: {
+  search?: string;
+  action?: string;
+  admin?: string;
+  from?: string;
+  to?: string;
+  sort?: "newest" | "oldest";
+  page?: number;
+  pageSize?: number;
+}) {
+  const pageSize = opts.pageSize ?? 20;
+  const page = opts.page ?? 0;
+  let q = supabase
+    .from("admin_audit_logs")
+    .select("*", { count: "exact" })
+    .order("created_at", { ascending: opts.sort === "oldest" })
+    .range(page * pageSize, page * pageSize + pageSize - 1);
+
+  if (opts.action) q = q.eq("action", opts.action);
+  if (opts.admin) q = q.ilike("admin_username", `%${opts.admin.replace(/^@/, "")}%`);
+  if (opts.from) q = q.gte("created_at", new Date(opts.from).toISOString());
+  if (opts.to) q = q.lte("created_at", new Date(`${opts.to}T23:59:59`).toISOString());
+  const term = opts.search?.trim();
+  if (term) q = q.or(`target_label.ilike.%${term}%,target_id.ilike.%${term}%,admin_username.ilike.%${term}%`);
+
+  const { data, error, count } = await q;
+  if (error) throw error;
+  return { rows: (data ?? []) as AuditLog[], total: count ?? 0, pageSize };
+}
+
+/* ------------------------------ admin actions ------------------------------ */
+
 export async function moderateConfession(
   id: string,
   patch: Partial<{ status: string; is_pinned: boolean; is_featured: boolean; body: string; category: string }>,
 ) {
+  const { data: prev } = await supabase
+    .from("confessions")
+    .select("number, status, is_pinned, is_featured")
+    .eq("id", id)
+    .maybeSingle();
   const { error } = await supabase.from("confessions").update(patch).eq("id", id);
   if (error) throw error;
+  for (const action of confessionActions(prev ?? null, patch as Record<string, unknown>)) {
+    await logAdminAction({
+      action,
+      target_type: "confession",
+      target_id: id,
+      target_label: prev ? `CONFESSION #${String(prev.number).padStart(6, "0")}` : null,
+      prev_state: (prev ?? {}) as Record<string, unknown>,
+      new_state: patch as Record<string, unknown>,
+    });
+  }
 }
 
 export async function deleteConfession(id: string) {
+  const { data: prev } = await supabase
+    .from("confessions")
+    .select("number, body, status, category")
+    .eq("id", id)
+    .maybeSingle();
   const { error } = await supabase.from("confessions").delete().eq("id", id);
   if (error) throw error;
+  await logAdminAction({
+    action: "delete",
+    target_type: "confession",
+    target_id: id,
+    target_label: prev ? `CONFESSION #${String(prev.number).padStart(6, "0")}` : null,
+    prev_state: (prev ?? {}) as Record<string, unknown>,
+    new_state: { deleted: true },
+  });
 }
 
 export type AdminReport = {
@@ -475,14 +610,43 @@ export async function fetchReports(status: string) {
 }
 
 export async function resolveReport(id: string, status: "resolved" | "dismissed") {
+  const { data: prev } = await supabase
+    .from("reports")
+    .select("status, reason, target_type, target_id")
+    .eq("id", id)
+    .maybeSingle();
   const { error } = await supabase.from("reports").update({ status }).eq("id", id);
   if (error) throw error;
+  await logAdminAction({
+    action: status === "resolved" ? "resolve_report" : "dismiss_report",
+    target_type: "report",
+    target_id: id,
+    target_label: prev ? `${prev.target_type} · ${prev.reason}` : null,
+    prev_state: (prev ?? {}) as Record<string, unknown>,
+    new_state: { status },
+  });
 }
 
 export async function moderateUser(userId: string, patch: { banned?: boolean; suspended_until?: string | null }) {
+  const { data: prev } = await supabase
+    .from("profiles")
+    .select("username, banned, suspended_until")
+    .eq("id", userId)
+    .maybeSingle();
   const { error } = await supabase.from("profiles").update(patch).eq("id", userId);
   if (error) throw error;
+  const action: AuditAction =
+    patch.banned === true ? "ban" : patch.banned === false ? "unban" : "suspend";
+  await logAdminAction({
+    action,
+    target_type: "user",
+    target_id: userId,
+    target_label: prev?.username ? `@${prev.username}` : null,
+    prev_state: (prev ?? {}) as Record<string, unknown>,
+    new_state: patch as Record<string, unknown>,
+  });
 }
+
 
 export async function adminStats() {
   const [confessions, comments, users, reports] = await Promise.all([
@@ -537,8 +701,21 @@ export async function fetchFounders() {
 }
 
 export async function deleteCommentAsAdmin(id: string) {
+  const { data: prev } = await supabase
+    .from("comments")
+    .select("body, user_id, confession_id")
+    .eq("id", id)
+    .maybeSingle();
   const { error } = await supabase.from("comments").delete().eq("id", id);
   if (error) throw error;
+  await logAdminAction({
+    action: "delete_comment",
+    target_type: "comment",
+    target_id: id,
+    target_label: prev?.body ? prev.body.slice(0, 60) : null,
+    prev_state: (prev ?? {}) as Record<string, unknown>,
+    new_state: { deleted: true },
+  });
 }
 
 /** Resolves the human-readable subject of a report so moderators see context. */
