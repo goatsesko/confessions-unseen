@@ -493,8 +493,8 @@ export async function logAdminAction(entry: {
       target_type: entry.target_type,
       target_id: entry.target_id,
       target_label: entry.target_label ?? null,
-      prev_state: entry.prev_state ?? {},
-      new_state: entry.new_state ?? {},
+      prev_state: (entry.prev_state ?? {}) as never,
+      new_state: (entry.new_state ?? {}) as never,
     });
   } catch {
     /* auditing must never break moderation */
