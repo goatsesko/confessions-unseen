@@ -701,8 +701,21 @@ export async function fetchFounders() {
 }
 
 export async function deleteCommentAsAdmin(id: string) {
+  const { data: prev } = await supabase
+    .from("comments")
+    .select("body, user_id, confession_id")
+    .eq("id", id)
+    .maybeSingle();
   const { error } = await supabase.from("comments").delete().eq("id", id);
   if (error) throw error;
+  await logAdminAction({
+    action: "delete_comment",
+    target_type: "comment",
+    target_id: id,
+    target_label: prev?.body ? prev.body.slice(0, 60) : null,
+    prev_state: (prev ?? {}) as Record<string, unknown>,
+    new_state: { deleted: true },
+  });
 }
 
 /** Resolves the human-readable subject of a report so moderators see context. */
