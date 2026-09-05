@@ -4,6 +4,7 @@ import { Eye, MessageCircle, Repeat2, Share2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ShareSheet } from "@/components/ShareSheet";
+import { UserAvatar } from "@/components/UserAvatar";
 import { ReportDialog } from "@/components/ReportDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { REACTIONS, type ReactionKind, formatConfessionId, formatCount, timeAgo } from "@/lib/confessions";
@@ -139,6 +140,17 @@ export function ConfessionCard({ confession }: { confession: ConfessionWithMeta 
           {formatConfessionId(confession.number)}
         </Link>
       </div>
+
+      {confession.authorUsername && (
+        <Link
+          to="/u/$username"
+          params={{ username: confession.authorUsername }}
+          className="tap mt-2 flex items-center gap-2 text-[13px] font-semibold"
+        >
+          <UserAvatar username={confession.authorUsername} avatarPath={confession.authorAvatar} size="sm" />@
+          {confession.authorUsername}
+        </Link>
+      )}
 
       {confession.parent_number && (
         <Link

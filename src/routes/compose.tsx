@@ -168,7 +168,7 @@ function Compose() {
             )}
           >
             <span className="flex items-center gap-2 text-sm font-bold">
-              {signedIn && <UserAvatar path={profile!.avatar_url} name={profile!.username} size={20} />}
+              {signedIn && <UserAvatar username={profile!.username} avatarPath={profile!.avatar_url} size="sm" />}
               {signedIn ? "@" + profile!.username : "My profile"}
             </span>
             <span className="block text-[11px] text-muted-foreground">
