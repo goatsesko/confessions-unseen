@@ -273,6 +273,7 @@ export type Database = {
       }
       confessions: {
         Row: {
+          author_id: string | null
           body: string
           category: string
           community_id: string | null
@@ -286,6 +287,7 @@ export type Database = {
           views: number
         }
         Insert: {
+          author_id?: string | null
           body: string
           category: string
           community_id?: string | null
@@ -299,6 +301,7 @@ export type Database = {
           views?: number
         }
         Update: {
+          author_id?: string | null
           body?: string
           category?: string
           community_id?: string | null
