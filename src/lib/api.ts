@@ -211,6 +211,7 @@ export async function createConfession(input: {
   category: string;
   communityId: string | null;
   parentNumber: number | null;
+  authorId?: string | null;
 }) {
   const { data, error } = await supabase
     .from("confessions")
@@ -219,7 +220,9 @@ export async function createConfession(input: {
       category: input.category,
       community_id: input.communityId,
       parent_number: input.parentNumber,
+      author_id: input.authorId ?? null,
     })
+
     .select("number")
     .single();
   if (error) throw error;
