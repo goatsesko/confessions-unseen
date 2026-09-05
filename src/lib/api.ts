@@ -16,7 +16,7 @@ export type Confession = {
   is_featured: boolean;
   status: string;
   created_at: string;
-
+  author_id: string | null;
 };
 
 export type ConfessionWithMeta = Confession & {
@@ -26,7 +26,10 @@ export type ConfessionWithMeta = Confession & {
   threadCount: number;
   repostCount: number;
   repostedByMe: boolean;
+  authorUsername: string | null;
+  authorAvatar: string | null;
 };
+
 
 
 const EMPTY: Record<ReactionKind, number> = {
@@ -44,11 +47,16 @@ async function decorate(rows: Confession[], viewerId: string | null): Promise<Co
   const numbers = rows.map((r) => r.number);
   const device = getDeviceKey();
 
-  const [reactions, comments, threads, reposts] = await Promise.all([
+  const authorIds = [...new Set(rows.map((r) => r.author_id).filter((v): v is string => !!v))];
+
+  const [reactions, comments, threads, reposts, authors] = await Promise.all([
     supabase.from("confession_reactions").select("confession_id, kind, device_key").in("confession_id", ids),
     supabase.from("comments").select("confession_id").in("confession_id", ids),
     supabase.from("confessions").select("parent_number").in("parent_number", numbers),
     supabase.from("reposts").select("confession_id, user_id").in("confession_id", ids),
+    authorIds.length
+      ? supabase.from("profiles").select("id, username, avatar_url").in("id", authorIds)
+      : Promise.resolve({ data: [] as { id: string; username: string; avatar_url: string | null }[] }),
   ]);
 
   return rows.map((row) => {
@@ -60,6 +68,7 @@ async function decorate(rows: Confession[], viewerId: string | null): Promise<Co
       if (r.device_key === device) mine.push(r.kind as ReactionKind);
     }
     const rowReposts = (reposts.data ?? []).filter((r) => r.confession_id === row.id);
+    const author = row.author_id ? (authors.data ?? []).find((p) => p.id === row.author_id) : undefined;
     return {
       ...row,
       reactions: counts,
@@ -68,8 +77,11 @@ async function decorate(rows: Confession[], viewerId: string | null): Promise<Co
       threadCount: (threads.data ?? []).filter((t) => t.parent_number === row.number).length,
       repostCount: rowReposts.length,
       repostedByMe: !!viewerId && rowReposts.some((r) => r.user_id === viewerId),
+      authorUsername: author?.username ?? null,
+      authorAvatar: author?.avatar_url ?? null,
     };
   });
+
 }
 
 export type FeedSort = "foryou" | "latest" | "trending";
@@ -199,6 +211,7 @@ export async function createConfession(input: {
   category: string;
   communityId: string | null;
   parentNumber: number | null;
+  authorId?: string | null;
 }) {
   const { data, error } = await supabase
     .from("confessions")
@@ -207,7 +220,9 @@ export async function createConfession(input: {
       category: input.category,
       community_id: input.communityId,
       parent_number: input.parentNumber,
+      author_id: input.authorId ?? null,
     })
+
     .select("number")
     .single();
   if (error) throw error;

@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1788610052312,
+      "tag": "0000_confession_optional_author",
+      "breakpoints": true
+    }
+  ]
+}

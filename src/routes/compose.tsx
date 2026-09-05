@@ -5,6 +5,8 @@ import { AlertTriangle, ArrowLeft, Check, Loader2, ShieldAlert } from "lucide-re
 import { useState } from "react";
 import { toast } from "sonner";
 import { BottomNav } from "@/components/AppShell";
+import { UserAvatar } from "@/components/UserAvatar";
+import { useAuth } from "@/hooks/useAuth";
 import { CATEGORIES, extractParentNumber, maskIdentifiers } from "@/lib/confessions";
 import { createConfession, fetchCommunities } from "@/lib/api";
 import { checkContent, hasBlockingIssue, isDuplicate, rateLimit } from "@/lib/moderation";
@@ -34,6 +36,9 @@ function Compose() {
   const [category, setCategory] = useState<string>(CATEGORIES[0]);
   const [communityId, setCommunityId] = useState<string | null>(null);
   const [posted, setPosted] = useState<number | null>(null);
+  const { user, profile } = useAuth();
+  const [asProfile, setAsProfile] = useState(false);
+  const signedIn = !!user && !!profile;
 
   const communities = useQuery({ queryKey: ["communities"], queryFn: fetchCommunities });
 
@@ -50,6 +55,7 @@ function Compose() {
         category,
         communityId,
         parentNumber: addTo ?? extractParentNumber(body),
+        authorId: asProfile && signedIn ? user!.id : null,
       });
     },
     onSuccess: (number) => {
@@ -72,7 +78,9 @@ function Compose() {
         </motion.div>
         <h1 className="font-display text-2xl font-extrabold">Confession #{posted} is live</h1>
         <p className="text-sm text-muted-foreground">
-          Nobody will ever know it was you. Share the number to add to it later.
+          {asProfile && signedIn
+            ? `Posted publicly as @${profile!.username}. Share the number to add to it later.`
+            : "Nobody will ever know it was you. Share the number to add to it later."}
         </p>
       </div>
     );
@@ -92,7 +100,7 @@ function Compose() {
             className="tap ml-auto flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-extrabold uppercase tracking-wide text-primary-foreground disabled:opacity-40"
           >
             {post.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            Post anonymously
+            {asProfile && signedIn ? "Post as @" + profile!.username : "Post anonymously"}
           </button>
         </div>
       </header>
@@ -133,6 +141,41 @@ function Compose() {
             ))}
           </div>
         )}
+
+        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Post as</p>
+        <div className="mb-6 grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setAsProfile(false)}
+            className={cn(
+              "tap rounded-2xl border p-3 text-left",
+              !asProfile ? "border-primary bg-primary/10" : "border-border",
+            )}
+          >
+            <span className="block text-sm font-bold">Anonymous</span>
+            <span className="block text-[11px] text-muted-foreground">Nobody sees who posted</span>
+          </button>
+          <button
+            onClick={() => {
+              if (!signedIn) {
+                navigate({ to: "/auth" });
+                return;
+              }
+              setAsProfile(true);
+            }}
+            className={cn(
+              "tap rounded-2xl border p-3 text-left",
+              asProfile ? "border-primary bg-primary/10" : "border-border",
+            )}
+          >
+            <span className="flex items-center gap-2 text-sm font-bold">
+              {signedIn && <UserAvatar username={profile!.username} avatarPath={profile!.avatar_url} size="sm" />}
+              {signedIn ? "@" + profile!.username : "My profile"}
+            </span>
+            <span className="block text-[11px] text-muted-foreground">
+              {signedIn ? "Your username shows on this post" : "Sign in to post with your username"}
+            </span>
+          </button>
+        </div>
 
         <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Category</p>
         <div className="mb-6 flex flex-wrap gap-2">
