@@ -16,7 +16,7 @@ export type Confession = {
   is_featured: boolean;
   status: string;
   created_at: string;
-
+  author_id: string | null;
 };
 
 export type ConfessionWithMeta = Confession & {
@@ -26,7 +26,10 @@ export type ConfessionWithMeta = Confession & {
   threadCount: number;
   repostCount: number;
   repostedByMe: boolean;
+  authorUsername: string | null;
+  authorAvatar: string | null;
 };
+
 
 
 const EMPTY: Record<ReactionKind, number> = {
