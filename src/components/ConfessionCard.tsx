@@ -1,9 +1,10 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Eye, MessageCircle, Repeat2, Share2 } from "lucide-react";
+import { Download, Eye, MessageCircle, Repeat2, Share2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ShareSheet } from "@/components/ShareSheet";
+import { ShareSheet, downloadConfessionImage } from "@/components/ShareSheet";
+
 import { UserAvatar } from "@/components/UserAvatar";
 import { ReportDialog } from "@/components/ReportDialog";
 import { useAuth } from "@/hooks/useAuth";
@@ -114,6 +115,19 @@ export function ConfessionCard({ confession }: { confession: ConfessionWithMeta 
   const reporterId = user?.id ?? null;
   const [share, setShare] = useState(false);
   const [report, setReport] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  async function download() {
+    setSaving(true);
+    try {
+      await downloadConfessionImage(confession.number, confession.body, confession.category);
+    } catch {
+      toast.error("Couldn't create that picture");
+    } finally {
+      setSaving(false);
+    }
+  }
+
 
   return (
     <motion.article
@@ -187,6 +201,16 @@ export function ConfessionCard({ confession }: { confession: ConfessionWithMeta 
           <Share2 className="h-4 w-4" />
           Share
         </button>
+        <button
+          onClick={download}
+          disabled={saving}
+          className="tap flex items-center gap-1.5 disabled:opacity-60"
+          aria-label="Download this confession as a picture"
+        >
+          <Download className="h-4 w-4" />
+          {saving ? "Saving…" : "Download"}
+        </button>
+
         <span className="ml-auto flex items-center gap-1.5">
           <Eye className="h-4 w-4" aria-hidden />
           <span className="sr-only">Views:</span>
