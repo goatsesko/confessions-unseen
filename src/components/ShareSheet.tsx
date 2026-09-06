@@ -55,13 +55,44 @@ export async function renderConfessionImage(number: number, body: string, catego
 
   ctx.fillStyle = "rgba(255,255,255,0.45)";
   ctx.font = "600 30px Manrope, system-ui, sans-serif";
-  ctx.fillText("COMRADES", 96, H - 148);
+  ctx.fillText("COMRADES", 96, H - 168);
   ctx.fillStyle = BRAND_PINK;
   ctx.font = "800 44px Sora, system-ui, sans-serif";
-  ctx.fillText("CONFESSIONS", 96, H - 100);
+  ctx.fillText("CONFESSIONS", 96, H - 120);
+
+  // branded pink border along the bottom edge
+  const bar = ctx.createLinearGradient(0, 0, W, 0);
+  bar.addColorStop(0, "#ff2d78");
+  bar.addColorStop(0.55, "#ff5fa2");
+  bar.addColorStop(1, "#ff2d78");
+  ctx.fillStyle = bar;
+  ctx.fillRect(0, H - 28, W, 28);
 
   return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
 }
+
+/** Downloads (or natively shares) the branded confession card. */
+export async function downloadConfessionImage(number: number, body: string, category: string) {
+  const blob = await renderConfessionImage(number, body, category);
+  if (!blob) throw new Error("render failed");
+  const name = `confession-${formatConfessionId(number).slice(1)}.png`;
+  const file = new File([blob], name, { type: "image/png" });
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: `Confession ${formatConfessionId(number)}` });
+      return;
+    } catch {
+      /* fall through to download */
+    }
+  }
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(href);
+}
+
 
 function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const out: string[] = [];
