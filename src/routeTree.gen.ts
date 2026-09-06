@@ -17,6 +17,7 @@ import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ChatIdRouteImport } from './routes/chat.$id'
 import { Route as CommunitiesIndexRouteImport } from './routes/communities.index'
 import { Route as CommunitiesSlugRouteImport } from './routes/communities.$slug'
@@ -63,6 +64,11 @@ const SearchRoute = SearchRouteImport.update({
   path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChatIdRoute = ChatIdRouteImport.update({
   id: '/chat/$id',
   path: '/chat/$id',
@@ -98,6 +104,7 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/chat/$id': typeof ChatIdRoute
   '/communities/$slug': typeof CommunitiesSlugRoute
   '/confession/$number': typeof ConfessionNumberRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByTo {
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/chat/$id': typeof ChatIdRoute
   '/communities/$slug': typeof CommunitiesSlugRoute
   '/confession/$number': typeof ConfessionNumberRoute
@@ -129,6 +137,7 @@ export interface FileRoutesById {
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/chat/$id': typeof ChatIdRoute
   '/communities/$slug': typeof CommunitiesSlugRoute
   '/confession/$number': typeof ConfessionNumberRoute
@@ -146,6 +155,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/profile'
     | '/search'
+    | '/settings'
     | '/chat/$id'
     | '/communities/$slug'
     | '/confession/$number'
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/profile'
     | '/search'
+    | '/settings'
     | '/chat/$id'
     | '/communities/$slug'
     | '/confession/$number'
@@ -176,6 +187,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/profile'
     | '/search'
+    | '/settings'
     | '/chat/$id'
     | '/communities/$slug'
     | '/confession/$number'
@@ -192,6 +204,7 @@ export interface RootRouteChildren {
   NotificationsRoute: typeof NotificationsRoute
   ProfileRoute: typeof ProfileRoute
   SearchRoute: typeof SearchRoute
+  SettingsRoute: typeof SettingsRoute
   ChatIdRoute: typeof ChatIdRoute
   CommunitiesSlugRoute: typeof CommunitiesSlugRoute
   ConfessionNumberRoute: typeof ConfessionNumberRoute
@@ -257,6 +270,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/chat/$id': {
       id: '/chat/$id'
       path: '/chat/$id'
@@ -304,6 +324,7 @@ const rootRouteChildren: RootRouteChildren = {
   NotificationsRoute: NotificationsRoute,
   ProfileRoute: ProfileRoute,
   SearchRoute: SearchRoute,
+  SettingsRoute: SettingsRoute,
   ChatIdRoute: ChatIdRoute,
   CommunitiesSlugRoute: CommunitiesSlugRoute,
   ConfessionNumberRoute: ConfessionNumberRoute,
