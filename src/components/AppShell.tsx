@@ -2,7 +2,9 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Bell, Home, Inbox, Plus, Search, User, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import logo from "@/assets/mask-logo.png";
+import { MainMenu } from "@/components/MainMenu";
 import { cn } from "@/lib/utils";
+
 
 const NAV = [
   { to: "/", label: "Home", icon: Home },
@@ -33,7 +35,9 @@ export function TopBar({ title }: { title?: ReactNode }) {
             <Bell className="h-5 w-5" />
             <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary" />
           </Link>
+          <MainMenu />
         </div>
+
       </div>
     </header>
   );
