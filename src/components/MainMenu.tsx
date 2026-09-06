@@ -2,7 +2,6 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
-  Bookmark,
   Home,
   Inbox,
   LogOut,
@@ -11,10 +10,12 @@ import {
   PenSquare,
   Phone,
   Search,
+  Settings as SettingsIcon,
   Shield,
   User,
   Users,
 } from "lucide-react";
+
 import { useState } from "react";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -34,10 +35,11 @@ const LINKS = [
 ] as const;
 
 const SETTINGS = [
-  { to: "/profile", label: "Profile & photo", icon: User, hint: "Username, picture, bio, town" },
-  { to: "/profile", label: "Privacy & messages", icon: MessageSquareLock, hint: "Who can message you, online status, receipts" },
-  { to: "/profile", label: "My comments & reposts", icon: Bookmark, hint: "Everything you've joined in on" },
+  { to: "/profile", label: "My profile", icon: User, hint: "Photo, bio, town, followers" },
+  { to: "/settings", label: "Settings", icon: SettingsIcon, hint: "Everything personal, in one place" },
+  { to: "/settings", label: "Privacy & messages", icon: MessageSquareLock, hint: "Who can message you, online status, receipts" },
 ] as const;
+
 
 export function MainMenu() {
   const [open, setOpen] = useState(false);
