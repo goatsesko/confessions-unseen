@@ -1,16 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Camera, Loader2, LogOut, MapPin } from "lucide-react";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { MapPin, Settings, Users } from "lucide-react";
+import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCommunities } from "@/lib/api";
-import { updateProfile, uploadImage } from "@/lib/messages";
+import { timeAgo } from "@/lib/confessions";
 import { fetchFollowStats, fetchReputation } from "@/lib/social";
-
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -18,7 +17,7 @@ export const Route = createFileRoute("/profile")({
       { title: "Your profile — Comrades Confessions" },
       {
         name: "description",
-        content: "Set your username, photo, bio and town. Your confessions stay anonymous forever.",
+        content: "Your comrade profile: photo, bio, town, followers, reputation, communities and comments.",
       },
       { property: "og:title", content: "Your profile — Comrades Confessions" },
       { property: "og:description", content: "Your comrade profile. Confessions are never linked to you." },
@@ -29,32 +28,11 @@ export const Route = createFileRoute("/profile")({
   component: ProfilePage,
 });
 
-function ProfilePage() {
-  const { user, profile, setProfile } = useAuth();
-  const qc = useQueryClient();
-  const [bio, setBio] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [location, setLocation] = useState("");
-  const [openToChat, setOpenToChat] = useState(true);
-  const [privacy, setPrivacy] = useState<"everyone" | "followers" | "following" | "nobody">("everyone");
-  const [showOnline, setShowOnline] = useState(true);
-  const [showReceipts, setShowReceipts] = useState(true);
-  const [allowImages, setAllowImages] = useState(true);
-  const [allowVoice, setAllowVoice] = useState(true);
-  const [uploading, setUploading] = useState(false);
+type Tab = "comments" | "communities";
 
-  useEffect(() => {
-    if (!profile) return;
-    setBio(profile.bio ?? "");
-    setDisplayName(profile.display_name ?? "");
-    setLocation(profile.location ?? "");
-    setOpenToChat(profile.open_to_chat ?? true);
-    setPrivacy(profile.msg_privacy ?? "everyone");
-    setShowOnline(profile.show_online ?? true);
-    setShowReceipts(profile.show_read_receipts ?? true);
-    setAllowImages(profile.allow_images ?? true);
-    setAllowVoice(profile.allow_voice ?? true);
-  }, [profile?.id]);
+function ProfilePage() {
+  const { user, profile } = useAuth();
+  const [tab, setTab] = useState<Tab>("comments");
 
   const communities = useQuery({ queryKey: ["communities"], queryFn: fetchCommunities });
   const mine = (communities.data ?? []).filter((c) => user && c.memberIds.includes(user.id));
@@ -71,7 +49,6 @@ function ProfilePage() {
     queryFn: () => fetchReputation(user!.id),
   });
 
-
   const comments = useQuery({
     queryKey: ["my-comments", user?.id],
     enabled: !!user,
@@ -85,42 +62,6 @@ function ProfilePage() {
       return data ?? [];
     },
   });
-
-  const save = useMutation({
-    mutationFn: () =>
-      updateProfile(user!.id, {
-        bio: bio.trim() || null,
-        display_name: displayName.trim() || null,
-        location: location.trim() || null,
-        open_to_chat: openToChat,
-        msg_privacy: privacy,
-        show_online: showOnline,
-        show_read_receipts: showReceipts,
-        allow_images: allowImages,
-        allow_voice: allowVoice,
-      }),
-    onSuccess: (data) => {
-      setProfile(data);
-      qc.invalidateQueries({ queryKey: ["profile"] });
-      toast.success("Profile saved");
-    },
-    onError: () => toast.error("Couldn't save profile"),
-  });
-
-  async function pickAvatar(file: File) {
-    if (!user) return;
-    setUploading(true);
-    try {
-      const path = await uploadImage(user.id, file, "avatar");
-      const data = await updateProfile(user.id, { avatar_url: path });
-      setProfile(data);
-      toast.success("Photo updated");
-    } catch {
-      toast.error("Couldn't upload that photo");
-    } finally {
-      setUploading(false);
-    }
-  }
 
   if (!user) {
     return (
@@ -142,157 +83,108 @@ function ProfilePage() {
 
   return (
     <AppShell>
-      <div className="surface p-5 text-center">
-        <div className="relative mx-auto w-20">
-          <UserAvatar username={profile?.username ?? "me"} avatarPath={profile?.avatar_url} size="lg" />
-          <label className="tap absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-primary">
-            {uploading ? (
-              <Loader2 className="h-4 w-4 animate-spin text-primary-foreground" />
-            ) : (
-              <Camera className="h-4 w-4 text-primary-foreground" />
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => e.target.files?.[0] && pickAvatar(e.target.files[0])}
-            />
-          </label>
-        </div>
-        <h1 className="mt-3 font-display text-xl font-extrabold">@{profile?.username ?? "comrade"}</h1>
-        {profile?.username && (
-          <Link
-            to="/u/$username"
-            params={{ username: profile.username }}
-            className="tap text-xs text-primary"
-          >
-            View public profile
-          </Link>
-        )}
-        <div className="mt-4 flex flex-wrap justify-center gap-6 text-sm">
-          <Stat label="Followers" value={stats.data?.followers ?? 0} />
-          <Stat label="Following" value={stats.data?.following ?? 0} />
-          <Stat label="Reputation" value={reputation.data ?? 0} />
-          <Stat label="Communities" value={mine.length} />
-          <Stat label="Comments" value={comments.data?.length ?? 0} />
-        </div>
+      <section className="surface overflow-hidden">
+        <div className="h-20 bg-gradient-to-r from-primary/30 via-primary/10 to-transparent" />
+        <div className="px-5 pb-5">
+          <div className="-mt-10 flex items-end justify-between">
+            <UserAvatar username={profile?.username ?? "me"} avatarPath={profile?.avatar_url} size="lg" />
+            <Link
+              to="/settings"
+              className="tap mb-1 inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-bold"
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </Link>
+          </div>
 
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="tap mt-4 inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs text-muted-foreground"
-        >
-          <LogOut className="h-3.5 w-3.5" /> Sign out
-        </button>
+          <h1 className="mt-3 font-display text-xl font-extrabold">@{profile?.username ?? "comrade"}</h1>
+          {profile?.display_name && <p className="text-sm text-muted-foreground">{profile.display_name}</p>}
+          {profile?.bio && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{profile.bio}</p>}
+          {profile?.location && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <MapPin className="h-3.5 w-3.5" />
+              {profile.location}
+            </p>
+          )}
+          {profile?.username && (
+            <Link to="/u/$username" params={{ username: profile.username }} className="tap mt-2 inline-block text-xs text-primary">
+              View public profile
+            </Link>
+          )}
+
+          <div className="mt-4 grid grid-cols-4 gap-2 border-t border-border pt-4 text-center">
+            <Stat label="Followers" value={stats.data?.followers ?? 0} />
+            <Stat label="Following" value={stats.data?.following ?? 0} />
+            <Stat label="Reputation" value={reputation.data ?? 0} />
+            <Stat label="Communities" value={mine.length} />
+          </div>
+        </div>
+      </section>
+
+      <div className="mt-4 flex gap-2">
+        <TabButton active={tab === "comments"} onClick={() => setTab("comments")}>
+          Comments
+        </TabButton>
+        <TabButton active={tab === "communities"} onClick={() => setTab("communities")}>
+          Communities
+        </TabButton>
       </div>
 
-      <div className="surface mt-4 space-y-3 p-4">
-        <h2 className="font-display text-sm font-bold">Edit profile</h2>
-        <Field label="Display name">
-          <input
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="What people call you"
-            className="h-11 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:border-primary"
-          />
-        </Field>
-        <Field label="Bio">
-          <textarea
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            rows={3}
-            maxLength={200}
-            placeholder="Say something real about you"
-            className="w-full resize-none rounded-xl border border-border bg-card p-3 text-sm outline-none focus:border-primary"
-          />
-        </Field>
-        <Field label="Town">
-          <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3">
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-            <input
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="e.g. Kisii town"
-              className="h-11 flex-1 bg-transparent text-sm outline-none"
-            />
-          </div>
-        </Field>
-        <label className="flex items-center justify-between rounded-xl border border-border bg-card px-3 py-3 text-sm">
-          <span>
-            Open to private chats
-            <span className="block text-xs text-muted-foreground">Let comrades message you directly</span>
-          </span>
-          <input
-            type="checkbox"
-            checked={openToChat}
-            onChange={(e) => setOpenToChat(e.target.checked)}
-            className="h-5 w-5 accent-primary"
-          />
-        </label>
+      <div className="mt-3 space-y-2">
+        {tab === "comments" &&
+          ((comments.data ?? []).length === 0 ? (
+            <Empty text="You haven't commented yet." />
+          ) : (
+            (comments.data ?? []).map((c) => (
+              <div key={c.id} className="surface p-3">
+                <p className="text-sm leading-relaxed">{c.body}</p>
+                <p className="mt-1.5 text-[11px] text-muted-foreground">{timeAgo(c.created_at)}</p>
+              </div>
+            ))
+          ))}
 
-        <div className="space-y-2 rounded-xl border border-border bg-card p-3 text-left">
-          <p className="text-xs text-muted-foreground">Who can message me?</p>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["everyone", "Everyone"],
-                ["followers", "Followers only"],
-                ["following", "People I follow"],
-                ["nobody", "Nobody"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                onClick={() => setPrivacy(value)}
-                className={
-                  "tap rounded-full border px-3 py-1.5 text-xs " +
-                  (privacy === value ? "border-primary text-primary" : "border-border text-muted-foreground")
-                }
+        {tab === "communities" &&
+          (mine.length === 0 ? (
+            <Empty text="You haven't joined any community yet." />
+          ) : (
+            mine.map((c) => (
+              <Link
+                key={c.id}
+                to="/communities/$slug"
+                params={{ slug: c.slug }}
+                className="surface tap flex items-center gap-3 p-3"
               >
-                {label}
-              </button>
-            ))}
-          </div>
-          <Toggle label="Show online status" checked={showOnline} onChange={setShowOnline} />
-          <Toggle label="Show read receipts" checked={showReceipts} onChange={setShowReceipts} />
-          <Toggle label="Allow image messages" checked={allowImages} onChange={setAllowImages} />
-          <Toggle label="Allow voice messages" checked={allowVoice} onChange={setAllowVoice} />
-        </div>
-
-        <button
-          onClick={() => save.mutate()}
-          disabled={save.isPending}
-          className="tap flex h-11 w-full items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground disabled:opacity-50"
-        >
-          {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save profile"}
-        </button>
+                <Users className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold">{c.name}</span>
+                <span className="ml-auto text-[11px] text-muted-foreground">{c.memberIds.length} members</span>
+              </Link>
+            ))
+          ))}
       </div>
 
       <p className="mt-5 text-xs text-muted-foreground">
-        Confessions you post never appear here. Only comments, reposts and communities do.
+        Confessions you post anonymously never appear here. Only comments, reposts and communities do.
       </p>
-
-      <h2 className="mt-5 font-display text-sm font-bold">Your comments</h2>
-      <div className="mt-2 space-y-2">
-        {(comments.data ?? []).length === 0 && (
-          <p className="py-6 text-center text-sm text-muted-foreground">Nothing yet.</p>
-        )}
-        {(comments.data ?? []).map((c) => (
-          <div key={c.id} className="surface p-3 text-sm">
-            {c.body}
-          </div>
-        ))}
-      </div>
     </AppShell>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <label className="block text-left">
-      <span className="mb-1 block text-xs text-muted-foreground">{label}</span>
+    <button
+      onClick={onClick}
+      className={cn(
+        "tap flex-1 rounded-full border px-4 py-2 text-xs font-bold",
+        active ? "border-primary text-primary" : "border-border text-muted-foreground",
+      )}
+    >
       {children}
-    </label>
+    </button>
   );
+}
+
+function Empty({ text }: { text: string }) {
+  return <p className="py-8 text-center text-sm text-muted-foreground">{text}</p>;
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
@@ -301,19 +193,5 @@ function Stat({ label, value }: { label: string; value: number }) {
       <p className="font-display text-lg font-extrabold">{value}</p>
       <p className="text-[11px] text-muted-foreground">{label}</p>
     </div>
-  );
-}
-
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <label className="flex items-center justify-between text-sm">
-      <span>{label}</span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-5 w-5 accent-primary"
-      />
-    </label>
   );
 }
