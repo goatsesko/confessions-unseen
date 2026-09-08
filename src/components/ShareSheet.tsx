@@ -7,66 +7,62 @@ import { formatConfessionId } from "@/lib/confessions";
 
 const BRAND_PINK = "#ff2d78";
 
-/** Renders a branded 1080x1350 confession card for social sharing. */
+/** Renders a compact, content-height confession poster for social sharing. */
 export async function renderConfessionImage(number: number, body: string, category: string): Promise<Blob | null> {
   const W = 1080;
-  const H = 1350;
+  const side = 72;
+  const maxWidth = W - side * 2;
+  const bodySize = 54;
+  const bodyLineHeight = 66;
   const canvas = document.createElement("canvas");
   canvas.width = W;
-  canvas.height = H;
+  canvas.height = 1;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
+
+  // Measure first so a short confession makes a short image while long text is never cropped.
+  ctx.font = `900 ${bodySize}px "Arial Black", Impact, sans-serif`;
+  const lines = wrap(ctx, body.trim(), maxWidth);
+  const headerTop = 62;
+  const headerHeight = 48;
+  const bodyTop = headerTop + headerHeight + 28;
+  const bodyHeight = Math.max(1, lines.length) * bodyLineHeight;
+  const brandTop = bodyTop + bodyHeight + 24;
+  const bottomBarHeight = 26;
+  const H = brandTop + 62 + bottomBarHeight;
+  canvas.height = H;
 
   ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, W, H);
 
-  const glow = ctx.createRadialGradient(W, 0, 0, W, 0, 900);
-  glow.addColorStop(0, "rgba(255,45,120,0.30)");
-  glow.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, W, H);
-
-  ctx.strokeStyle = "rgba(255,255,255,0.10)";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(48, 48, W - 96, H - 96);
+  // Loud sticker-like ID instead of a formal poster heading.
+  const id = `CONFESSION ${formatConfessionId(number)}`;
+  ctx.font = "900 30px Arial, sans-serif";
+  const idWidth = ctx.measureText(id).width + 32;
+  ctx.fillStyle = BRAND_PINK;
+  ctx.fillRect(side, headerTop, idWidth, headerHeight);
+  ctx.fillStyle = "#000000";
+  ctx.fillText(id, side + 16, headerTop + 34);
 
   ctx.fillStyle = BRAND_PINK;
-  ctx.font = "800 44px Sora, system-ui, sans-serif";
-  ctx.fillText(`CONFESSION ${formatConfessionId(number)}`, 96, 168);
+  ctx.font = "900 25px Arial, sans-serif";
+  ctx.fillText(category.toUpperCase(), side + idWidth + 18, headerTop + 33);
 
-  ctx.fillStyle = "rgba(255,255,255,0.55)";
-  ctx.font = "600 30px Manrope, system-ui, sans-serif";
-  ctx.fillText(category.toUpperCase(), 96, 216);
-
-  // body text, auto-sized so nothing is ever cut off
-  const maxWidth = W - 192;
-  const top = 300;
-  const bottom = H - 220;
-  let size = 62;
-  let lines: string[] = [];
-  for (; size >= 26; size -= 2) {
-    ctx.font = `700 ${size}px Sora, system-ui, sans-serif`;
-    lines = wrap(ctx, body, maxWidth);
-    if (lines.length * size * 1.32 <= bottom - top) break;
-  }
+  // Heavy, direct body copy. The poster grows line-by-line with the confession.
   ctx.fillStyle = "#ffffff";
-  ctx.font = `700 ${size}px Sora, system-ui, sans-serif`;
-  lines.forEach((line, i) => ctx.fillText(line, 96, top + (i + 1) * size * 1.32));
+  ctx.font = `900 ${bodySize}px "Arial Black", Impact, sans-serif`;
+  lines.forEach((line, i) => ctx.fillText(line, side, bodyTop + (i + 1) * bodyLineHeight - 12));
 
-  ctx.fillStyle = "rgba(255,255,255,0.45)";
-  ctx.font = "600 30px Manrope, system-ui, sans-serif";
-  ctx.fillText("COMRADES", 96, H - 168);
+  // A small street-tag signature, tucked directly under the last line.
+  ctx.textAlign = "right";
   ctx.fillStyle = BRAND_PINK;
-  ctx.font = "800 44px Sora, system-ui, sans-serif";
-  ctx.fillText("CONFESSIONS", 96, H - 120);
+  ctx.font = "900 italic 28px Arial, sans-serif";
+  ctx.fillText("COMRADES CONFESSIONS", W - side, brandTop + 30);
+  ctx.textAlign = "left";
 
-  // branded pink border along the bottom edge
-  const bar = ctx.createLinearGradient(0, 0, W, 0);
-  bar.addColorStop(0, "#ff2d78");
-  bar.addColorStop(0.55, "#ff5fa2");
-  bar.addColorStop(1, "#ff2d78");
-  ctx.fillStyle = bar;
-  ctx.fillRect(0, H - 28, W, 28);
+  // Hard pink edge: no gradient, glow, frame, or formal empty margins.
+  ctx.fillStyle = BRAND_PINK;
+  ctx.fillRect(0, H - bottomBarHeight, W, bottomBarHeight);
 
   return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
 }
