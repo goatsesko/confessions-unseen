@@ -152,7 +152,7 @@ function Compose() {
         <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Post as</p>
         <div className="mb-6 grid grid-cols-2 gap-2">
           <button
-            onClick={() => setAsProfile(false)}
+            onClick={() => choosePostAs(false)}
             className={cn(
               "tap rounded-2xl border p-3 text-left",
               !asProfile ? "border-primary bg-primary/10" : "border-border",
@@ -167,7 +167,7 @@ function Compose() {
                 navigate({ to: "/auth" });
                 return;
               }
-              setAsProfile(true);
+              choosePostAs(true);
             }}
             className={cn(
               "tap rounded-2xl border p-3 text-left",
