@@ -37,8 +37,15 @@ function Compose() {
   const [communityId, setCommunityId] = useState<string | null>(null);
   const [posted, setPosted] = useState<number | null>(null);
   const { user, profile } = useAuth();
-  const [asProfile, setAsProfile] = useState(false);
+  const [asProfile, setAsProfile] = useState(
+    typeof window !== "undefined" && window.localStorage.getItem("cc_post_as") === "profile",
+  );
   const signedIn = !!user && !!profile;
+
+  function choosePostAs(next: boolean) {
+    setAsProfile(next);
+    if (typeof window !== "undefined") window.localStorage.setItem("cc_post_as", next ? "profile" : "anon");
+  }
 
   const communities = useQuery({ queryKey: ["communities"], queryFn: fetchCommunities });
 
@@ -145,7 +152,7 @@ function Compose() {
         <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Post as</p>
         <div className="mb-6 grid grid-cols-2 gap-2">
           <button
-            onClick={() => setAsProfile(false)}
+            onClick={() => choosePostAs(false)}
             className={cn(
               "tap rounded-2xl border p-3 text-left",
               !asProfile ? "border-primary bg-primary/10" : "border-border",
@@ -160,7 +167,7 @@ function Compose() {
                 navigate({ to: "/auth" });
                 return;
               }
-              setAsProfile(true);
+              choosePostAs(true);
             }}
             className={cn(
               "tap rounded-2xl border p-3 text-left",
