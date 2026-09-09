@@ -441,20 +441,39 @@ export async function searchUsers(q: string) {
 
 export async function isAdmin(userId: string | null | undefined) {
   if (!userId) return false;
-  const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-  return !!data;
+  const [admin, moderator] = await Promise.all([
+    supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
+    supabase.rpc("has_role", { _user_id: userId, _role: "moderator" }),
+  ]);
+  return !!admin.data || !!moderator.data;
 }
 
-export async function fetchAdminConfessions(status: string) {
-  const { data, error } = await supabase
+export async function fetchAdminConfessions(
+  status: string,
+  opts: { search?: string; page?: number; pageSize?: number } = {},
+) {
+  const pageSize = opts.pageSize ?? 20;
+  const page = opts.page ?? 0;
+  let q = supabase
     .from("confessions")
-    .select("*")
+    .select("*", { count: "exact" })
     .eq("status", status)
     .order("created_at", { ascending: false })
-    .limit(60);
+    .range(page * pageSize, page * pageSize + pageSize - 1);
+
+  const term = opts.search?.trim().replace(/^#/, "");
+  if (term) {
+    const asNumber = Number(term);
+    q = Number.isFinite(asNumber) && term !== "" && /^\d+$/.test(term)
+      ? q.eq("number", asNumber)
+      : q.ilike("body", `%${term}%`);
+  }
+
+  const { data, error, count } = await q;
   if (error) throw error;
-  return (data ?? []) as Confession[];
+  return { rows: (data ?? []) as Confession[], total: count ?? 0, pageSize };
 }
+
 
 /* -------------------------------- audit log -------------------------------- */
 
