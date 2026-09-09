@@ -487,6 +487,7 @@ export type AuditAction =
   | "remove"
   | "delete"
   | "delete_comment"
+  | "delete_message"
   | "ban"
   | "unban"
   | "suspend"
