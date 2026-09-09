@@ -510,7 +510,7 @@ export type AuditLog = {
 /** Append-only record of a moderation action. Never blocks the action itself. */
 export async function logAdminAction(entry: {
   action: AuditAction;
-  target_type: "confession" | "comment" | "user" | "report";
+  target_type: "confession" | "comment" | "user" | "report" | "message";
   target_id: string;
   target_label?: string | null;
   prev_state?: Record<string, unknown>;
