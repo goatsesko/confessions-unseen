@@ -681,6 +681,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_delete_message: { Args: { _id: string }; Returns: undefined }
+      admin_message_context: {
+        Args: { _id: string }
+        Returns: {
+          audio_url: string
+          body: string
+          created_at: string
+          id: string
+          image_url: string
+          sender_username: string
+        }[]
+      }
       bump_confession_views: { Args: { _number: number }; Returns: undefined }
       has_role: {
         Args: {
