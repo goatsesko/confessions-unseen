@@ -724,18 +724,21 @@ export type AdminUser = {
   created_at: string;
 };
 
-export async function fetchAdminUsers(search = "") {
+export async function fetchAdminUsers(search = "", opts: { page?: number; pageSize?: number } = {}) {
+  const pageSize = opts.pageSize ?? 20;
+  const page = opts.page ?? 0;
   let q = supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_url, banned, suspended_until, created_at")
+    .select("id, username, display_name, avatar_url, banned, suspended_until, created_at", { count: "exact" })
     .order("created_at", { ascending: true })
-    .limit(60);
+    .range(page * pageSize, page * pageSize + pageSize - 1);
   const term = search.trim().replace(/^@/, "").toLowerCase();
   if (term.length > 0) q = q.ilike("username", `%${term}%`);
-  const { data, error } = await q;
+  const { data, error, count } = await q;
   if (error) throw error;
-  return (data ?? []) as AdminUser[];
+  return { rows: (data ?? []) as AdminUser[], total: count ?? 0, pageSize };
 }
+
 
 /** The founder allow-list: the first 5 accounts to join are permanent admins. */
 export async function fetchFounders() {
