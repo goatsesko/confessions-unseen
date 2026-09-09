@@ -441,20 +441,39 @@ export async function searchUsers(q: string) {
 
 export async function isAdmin(userId: string | null | undefined) {
   if (!userId) return false;
-  const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-  return !!data;
+  const [admin, moderator] = await Promise.all([
+    supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
+    supabase.rpc("has_role", { _user_id: userId, _role: "moderator" }),
+  ]);
+  return !!admin.data || !!moderator.data;
 }
 
-export async function fetchAdminConfessions(status: string) {
-  const { data, error } = await supabase
+export async function fetchAdminConfessions(
+  status: string,
+  opts: { search?: string; page?: number; pageSize?: number } = {},
+) {
+  const pageSize = opts.pageSize ?? 20;
+  const page = opts.page ?? 0;
+  let q = supabase
     .from("confessions")
-    .select("*")
+    .select("*", { count: "exact" })
     .eq("status", status)
     .order("created_at", { ascending: false })
-    .limit(60);
+    .range(page * pageSize, page * pageSize + pageSize - 1);
+
+  const term = opts.search?.trim().replace(/^#/, "");
+  if (term) {
+    const asNumber = Number(term);
+    q = Number.isFinite(asNumber) && term !== "" && /^\d+$/.test(term)
+      ? q.eq("number", asNumber)
+      : q.ilike("body", `%${term}%`);
+  }
+
+  const { data, error, count } = await q;
   if (error) throw error;
-  return (data ?? []) as Confession[];
+  return { rows: (data ?? []) as Confession[], total: count ?? 0, pageSize };
 }
+
 
 /* -------------------------------- audit log -------------------------------- */
 
@@ -468,6 +487,7 @@ export type AuditAction =
   | "remove"
   | "delete"
   | "delete_comment"
+  | "delete_message"
   | "ban"
   | "unban"
   | "suspend"
@@ -490,7 +510,7 @@ export type AuditLog = {
 /** Append-only record of a moderation action. Never blocks the action itself. */
 export async function logAdminAction(entry: {
   action: AuditAction;
-  target_type: "confession" | "comment" | "user" | "report";
+  target_type: "confession" | "comment" | "user" | "report" | "message";
   target_id: string;
   target_label?: string | null;
   prev_state?: Record<string, unknown>;
@@ -613,16 +633,33 @@ export type AdminReport = {
   created_at: string;
 };
 
-export async function fetchReports(status: string) {
-  const { data, error } = await supabase
+export async function fetchReports(
+  status: string,
+  opts: { type?: string; page?: number; pageSize?: number } = {},
+) {
+  const pageSize = opts.pageSize ?? 20;
+  const page = opts.page ?? 0;
+  let q = supabase
     .from("reports")
-    .select("id, target_type, target_id, reason, status, created_at")
+    .select("id, target_type, target_id, reason, status, created_at", { count: "exact" })
     .eq("status", status)
     .order("created_at", { ascending: false })
-    .limit(80);
+    .range(page * pageSize, page * pageSize + pageSize - 1);
+  if (opts.type) q = q.eq("target_type", opts.type);
+  const { data, error, count } = await q;
   if (error) throw error;
-  return (data ?? []) as AdminReport[];
+
+  const rows = (data ?? []) as AdminReport[];
+  // How many total reports exist against each target, so repeat offenders stand out.
+  const ids = [...new Set(rows.map((r) => r.target_id))];
+  const counts: Record<string, number> = {};
+  if (ids.length > 0) {
+    const { data: all } = await supabase.from("reports").select("target_id").in("target_id", ids);
+    for (const r of all ?? []) counts[r.target_id] = (counts[r.target_id] ?? 0) + 1;
+  }
+  return { rows, total: count ?? 0, pageSize, counts };
 }
+
 
 export async function resolveReport(id: string, status: "resolved" | "dismissed") {
   const { data: prev } = await supabase
@@ -688,18 +725,21 @@ export type AdminUser = {
   created_at: string;
 };
 
-export async function fetchAdminUsers(search = "") {
+export async function fetchAdminUsers(search = "", opts: { page?: number; pageSize?: number } = {}) {
+  const pageSize = opts.pageSize ?? 20;
+  const page = opts.page ?? 0;
   let q = supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_url, banned, suspended_until, created_at")
+    .select("id, username, display_name, avatar_url, banned, suspended_until, created_at", { count: "exact" })
     .order("created_at", { ascending: true })
-    .limit(60);
+    .range(page * pageSize, page * pageSize + pageSize - 1);
   const term = search.trim().replace(/^@/, "").toLowerCase();
   if (term.length > 0) q = q.ilike("username", `%${term}%`);
-  const { data, error } = await q;
+  const { data, error, count } = await q;
   if (error) throw error;
-  return (data ?? []) as AdminUser[];
+  return { rows: (data ?? []) as AdminUser[], total: count ?? 0, pageSize };
 }
+
 
 /** The founder allow-list: the first 5 accounts to join are permanent admins. */
 export async function fetchFounders() {
@@ -743,6 +783,25 @@ export async function fetchReportTarget(type: string, id: string) {
     const { data } = await supabase.from("comments").select("id, body, user_id, confession_id").eq("id", id).maybeSingle();
     return data ? { kind: "comment" as const, ...data } : null;
   }
+  if (type === "message") {
+    const { data } = await supabase.rpc("admin_message_context", { _id: id });
+    const row = (data ?? [])[0];
+    return row ? { kind: "message" as const, ...row } : null;
+  }
   const { data } = await supabase.from("profiles").select("id, username, banned").eq("id", id).maybeSingle();
   return data ? { kind: "user" as const, ...data } : null;
+}
+
+/** Admin-only removal of a reported direct message. */
+export async function deleteMessageAsAdmin(id: string, label?: string | null) {
+  const { error } = await supabase.rpc("admin_delete_message", { _id: id });
+  if (error) throw error;
+  await logAdminAction({
+    action: "delete_message",
+    target_type: "message",
+    target_id: id,
+    target_label: label ? label.slice(0, 60) : null,
+    prev_state: { body: label ?? null },
+    new_state: { deleted: true },
+  });
 }

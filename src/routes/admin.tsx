@@ -11,6 +11,7 @@ import {
   adminStats,
   deleteCommentAsAdmin,
   deleteConfession,
+  deleteMessageAsAdmin,
   fetchAdminConfessions,
   fetchAdminUsers,
   fetchAuditLogs,
@@ -143,10 +144,13 @@ const STATUSES = ["published", "hidden", "removed"] as const;
 function QueueTab() {
   const qc = useQueryClient();
   const [status, setStatus] = useState<(typeof STATUSES)[number]>("published");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const [confirming, setConfirming] = useState<{ id: string; label: string } | null>(null);
 
   const list = useQuery({
-    queryKey: ["admin-confessions", status],
-    queryFn: () => fetchAdminConfessions(status),
+    queryKey: ["admin-confessions", status, search, page],
+    queryFn: () => fetchAdminConfessions(status, { search, page }),
   });
 
   const refresh = () => {
@@ -169,33 +173,54 @@ function QueueTab() {
     mutationFn: (id: string) => deleteConfession(id),
     onSuccess: () => {
       refresh();
+      setConfirming(null);
       toast.success("Confession deleted");
     },
     onError: () => toast.error("Couldn't delete"),
   });
 
+  const rows = list.data?.rows ?? [];
+  const busy = act.isPending || remove.isPending;
+
   return (
     <div>
-      <div className="mb-3 flex gap-2">
-        {STATUSES.map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatus(s)}
-            className={cn(
-              "tap rounded-full px-3 py-1 text-[11px] font-semibold capitalize",
-              status === s ? "bg-elevated text-foreground" : "text-muted-foreground",
-            )}
-          >
-            {s}
-          </button>
-        ))}
+      <input
+        value={search}
+        onChange={(e) => {
+          setPage(0);
+          setSearch(e.target.value);
+        }}
+        placeholder="Search by number (#000123) or text"
+        className="mb-3 h-11 w-full rounded-full border border-border bg-card px-4 text-sm outline-none placeholder:text-muted-foreground"
+      />
+
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex gap-2">
+          {STATUSES.map((s) => (
+            <button
+              key={s}
+              onClick={() => {
+                setPage(0);
+                setStatus(s);
+              }}
+              className={cn(
+                "tap rounded-full px-3 py-1 text-[11px] font-semibold capitalize",
+                status === s ? "bg-elevated text-foreground" : "text-muted-foreground",
+              )}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <span className="text-[11px] text-muted-foreground">{list.data?.total ?? 0} total</span>
       </div>
 
       {list.isLoading && <SkeletonList />}
-      {!list.isLoading && (list.data ?? []).length === 0 && <Empty text={`No ${status} confessions.`} />}
+      {list.isError && <Empty text="Couldn't load the queue. Try again." />}
+      {!list.isLoading && !list.isError && rows.length === 0 && <Empty text={`No ${status} confessions.`} />}
 
-      <div className="space-y-3">
-        {(list.data ?? []).map((c) => (
+      <div className={cn("space-y-3", busy && "opacity-60")}>
+        {rows.map((c) => (
           <div key={c.id} className="rounded-2xl border border-border bg-card p-4">
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <Link to="/confession/$number" params={{ number: String(c.number) }} className="font-semibold text-primary">
@@ -243,24 +268,41 @@ function QueueTab() {
                 icon={Trash2}
                 label="Delete"
                 danger
-                onClick={() => {
-                  if (confirm("Permanently delete this confession?")) remove.mutate(c.id);
-                }}
+                onClick={() => setConfirming({ id: c.id, label: `CONFESSION ${formatConfessionId(c.number)}` })}
               />
             </div>
           </div>
         ))}
       </div>
+
+      <Pager page={page} total={list.data?.total ?? 0} pageSize={list.data?.pageSize ?? 20} onPage={setPage} />
+
+      <Confirm
+        open={!!confirming}
+        title="Delete permanently?"
+        body={`${confirming?.label ?? "This confession"} and all its comments, reactions and reposts will be erased. This cannot be undone.`}
+        confirmLabel="Delete forever"
+        busy={remove.isPending}
+        onCancel={() => setConfirming(null)}
+        onConfirm={() => confirming && remove.mutate(confirming.id)}
+      />
     </div>
   );
 }
 
 /* --------------------------------- reports --------------------------------- */
 
+const REPORT_TYPES = ["", "confession", "comment", "message", "user"] as const;
+
 function ReportsTab() {
   const qc = useQueryClient();
   const [status, setStatus] = useState<"open" | "resolved" | "dismissed">("open");
-  const list = useQuery({ queryKey: ["admin-reports", status], queryFn: () => fetchReports(status) });
+  const [type, setType] = useState<string>("");
+  const [page, setPage] = useState(0);
+  const list = useQuery({
+    queryKey: ["admin-reports", status, type, page],
+    queryFn: () => fetchReports(status, { type, page }),
+  });
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["admin-reports"] });
@@ -276,37 +318,75 @@ function ReportsTab() {
     onError: () => toast.error("Couldn't update report"),
   });
 
+  const rows = list.data?.rows ?? [];
+
   return (
     <div>
-      <div className="mb-3 flex gap-2">
-        {(["open", "resolved", "dismissed"] as const).map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatus(s)}
-            className={cn(
-              "tap rounded-full px-3 py-1 text-[11px] font-semibold capitalize",
-              status === s ? "bg-elevated text-foreground" : "text-muted-foreground",
-            )}
-          >
-            {s}
-          </button>
-        ))}
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex gap-2">
+          {(["open", "resolved", "dismissed"] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => {
+                setPage(0);
+                setStatus(s);
+              }}
+              className={cn(
+                "tap rounded-full px-3 py-1 text-[11px] font-semibold capitalize",
+                status === s ? "bg-elevated text-foreground" : "text-muted-foreground",
+              )}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <select
+          value={type}
+          onChange={(e) => {
+            setPage(0);
+            setType(e.target.value);
+          }}
+          className="h-9 rounded-xl border border-border bg-card px-2 text-[11px] outline-none"
+        >
+          {REPORT_TYPES.map((t) => (
+            <option key={t || "all"} value={t}>
+              {t === "" ? "All kinds" : t}
+            </option>
+          ))}
+        </select>
       </div>
 
       {list.isLoading && <SkeletonList />}
-      {!list.isLoading && (list.data ?? []).length === 0 && <Empty text={`No ${status} reports.`} />}
+      {list.isError && <Empty text="Couldn't load reports. Try again." />}
+      {!list.isLoading && !list.isError && rows.length === 0 && <Empty text={`No ${status} reports.`} />}
 
       <div className="space-y-3">
-        {(list.data ?? []).map((r) => (
-          <ReportRow key={r.id} report={r} onResolve={(next) => resolve.mutate({ id: r.id, next })} />
+        {rows.map((r) => (
+          <ReportRow
+            key={r.id}
+            report={r}
+            reportCount={list.data?.counts?.[r.target_id] ?? 1}
+            onResolve={(next) => resolve.mutate({ id: r.id, next })}
+          />
         ))}
       </div>
+
+      <Pager page={page} total={list.data?.total ?? 0} pageSize={list.data?.pageSize ?? 20} onPage={setPage} />
     </div>
   );
 }
 
-function ReportRow({ report, onResolve }: { report: AdminReport; onResolve: (n: "resolved" | "dismissed") => void }) {
+function ReportRow({
+  report,
+  reportCount,
+  onResolve,
+}: {
+  report: AdminReport;
+  reportCount: number;
+  onResolve: (n: "resolved" | "dismissed") => void;
+}) {
   const qc = useQueryClient();
+  const [confirming, setConfirming] = useState(false);
   const target = useQuery({
     queryKey: ["report-target", report.target_type, report.target_id],
     queryFn: () => fetchReportTarget(report.target_type, report.target_id),
@@ -317,16 +397,20 @@ function ReportRow({ report, onResolve }: { report: AdminReport; onResolve: (n: 
     mutationFn: async () => {
       if (t?.kind === "confession") await moderateConfession(t.id, { status: "removed" });
       else if (t?.kind === "comment") await deleteCommentAsAdmin(t.id);
+      else if (t?.kind === "message") await deleteMessageAsAdmin(t.id, t.body);
       else if (t?.kind === "user") await moderateUser(t.id, { banned: true });
       await resolveReport(report.id, "resolved");
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-reports"] });
       qc.invalidateQueries({ queryKey: ["admin-stats"] });
+      setConfirming(false);
       toast.success("Content actioned");
     },
     onError: () => toast.error("Couldn't action this report"),
   });
+
+  const actionLabel = t?.kind === "user" ? "Ban user" : "Take down";
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
@@ -334,6 +418,11 @@ function ReportRow({ report, onResolve }: { report: AdminReport; onResolve: (n: 
         <Flag className="h-3.5 w-3.5 text-primary" />
         <span className="font-semibold capitalize text-foreground">{report.target_type}</span>
         <span>· {timeAgo(report.created_at)}</span>
+        {reportCount > 1 && (
+          <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary">
+            {reportCount} reports
+          </span>
+        )}
       </div>
       <p className="mt-1.5 text-sm font-medium">{report.reason}</p>
 
@@ -346,6 +435,17 @@ function ReportRow({ report, onResolve }: { report: AdminReport; onResolve: (n: 
           </Link>
         )}
         {t?.kind === "comment" && <span className="line-clamp-3 block">“{t.body}”</span>}
+        {t?.kind === "message" && (
+          <div>
+            <span className="font-semibold text-foreground">
+              Direct message{t.sender_username ? ` from @${t.sender_username}` : ""}
+            </span>
+            <p className="mt-1 line-clamp-3 whitespace-pre-wrap">{t.body || "(media only)"}</p>
+            {(t.image_url || t.audio_url) && (
+              <p className="mt-1 text-[11px] text-primary">{t.image_url ? "Contains an image" : "Contains a voice note"}</p>
+            )}
+          </div>
+        )}
         {t?.kind === "user" && (
           <Link to="/u/$username" params={{ username: t.username }} className="font-semibold text-primary">
             @{t.username}
@@ -355,11 +455,25 @@ function ReportRow({ report, onResolve }: { report: AdminReport; onResolve: (n: 
 
       {report.status === "open" && (
         <div className="mt-3 flex flex-wrap gap-2">
-          <Action icon={Ban} label={t?.kind === "user" ? "Ban user" : "Take down"} danger onClick={() => takedown.mutate()} />
+          <Action icon={Ban} label={actionLabel} danger onClick={() => setConfirming(true)} />
           <Action icon={Check} label="Resolve" onClick={() => onResolve("resolved")} />
           <Action icon={X} label="Dismiss" onClick={() => onResolve("dismissed")} />
         </div>
       )}
+
+      <Confirm
+        open={confirming}
+        title={`${actionLabel}?`}
+        body={
+          t?.kind === "user"
+            ? "This member will be banned and locked out immediately."
+            : "This content will be taken down and the report marked resolved."
+        }
+        confirmLabel={actionLabel}
+        busy={takedown.isPending}
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => takedown.mutate()}
+      />
     </div>
   );
 }
@@ -369,13 +483,16 @@ function ReportRow({ report, onResolve }: { report: AdminReport; onResolve: (n: 
 function UsersTab() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
-  const list = useQuery({ queryKey: ["admin-users", q], queryFn: () => fetchAdminUsers(q) });
+  const [page, setPage] = useState(0);
+  const [confirming, setConfirming] = useState<{ id: string; username: string } | null>(null);
+  const list = useQuery({ queryKey: ["admin-users", q, page], queryFn: () => fetchAdminUsers(q, { page }) });
 
   const act = useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: { banned?: boolean; suspended_until?: string | null } }) =>
       moderateUser(id, patch),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-users"] });
+      setConfirming(null);
       toast.success("Member updated");
     },
     onError: () => toast.error("Couldn't update member"),
@@ -384,20 +501,26 @@ function UsersTab() {
   const suspend = (id: string, days: number) =>
     act.mutate({ id, patch: { suspended_until: new Date(Date.now() + days * 86_400_000).toISOString() } });
 
+  const rows = list.data?.rows ?? [];
+
   return (
     <div>
       <input
         value={q}
-        onChange={(e) => setQ(e.target.value)}
+        onChange={(e) => {
+          setPage(0);
+          setQ(e.target.value);
+        }}
         placeholder="Search @username"
         className="mb-3 h-11 w-full rounded-full border border-border bg-card px-4 text-sm outline-none placeholder:text-muted-foreground"
       />
 
       {list.isLoading && <SkeletonList />}
-      {!list.isLoading && (list.data ?? []).length === 0 && <Empty text="No members found." />}
+      {list.isError && <Empty text="Couldn't load members. Try again." />}
+      {!list.isLoading && !list.isError && rows.length === 0 && <Empty text="No members found." />}
 
       <div className="space-y-2">
-        {(list.data ?? []).map((u) => {
+        {rows.map((u) => {
           const suspended = !!u.suspended_until && new Date(u.suspended_until) > new Date();
           return (
             <div key={u.id} className="rounded-2xl border border-border bg-card p-3">
@@ -429,9 +552,7 @@ function UsersTab() {
                     icon={Ban}
                     label="Ban"
                     danger
-                    onClick={() => {
-                      if (confirm(`Ban @${u.username}?`)) act.mutate({ id: u.id, patch: { banned: true } });
-                    }}
+                    onClick={() => setConfirming({ id: u.id, username: u.username })}
                   />
                 )}
               </div>
@@ -439,9 +560,22 @@ function UsersTab() {
           );
         })}
       </div>
+
+      <Pager page={page} total={list.data?.total ?? 0} pageSize={list.data?.pageSize ?? 20} onPage={setPage} />
+
+      <Confirm
+        open={!!confirming}
+        title={`Ban @${confirming?.username ?? ""}?`}
+        body="They lose access to messaging, comments and communities until you lift the ban."
+        confirmLabel="Ban member"
+        busy={act.isPending}
+        onCancel={() => setConfirming(null)}
+        onConfirm={() => confirming && act.mutate({ id: confirming.id, patch: { banned: true } })}
+      />
     </div>
   );
 }
+
 
 /* -------------------------------- founders --------------------------------- */
 
