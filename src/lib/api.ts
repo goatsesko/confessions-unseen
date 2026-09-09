@@ -632,16 +632,33 @@ export type AdminReport = {
   created_at: string;
 };
 
-export async function fetchReports(status: string) {
-  const { data, error } = await supabase
+export async function fetchReports(
+  status: string,
+  opts: { type?: string; page?: number; pageSize?: number } = {},
+) {
+  const pageSize = opts.pageSize ?? 20;
+  const page = opts.page ?? 0;
+  let q = supabase
     .from("reports")
-    .select("id, target_type, target_id, reason, status, created_at")
+    .select("id, target_type, target_id, reason, status, created_at", { count: "exact" })
     .eq("status", status)
     .order("created_at", { ascending: false })
-    .limit(80);
+    .range(page * pageSize, page * pageSize + pageSize - 1);
+  if (opts.type) q = q.eq("target_type", opts.type);
+  const { data, error, count } = await q;
   if (error) throw error;
-  return (data ?? []) as AdminReport[];
+
+  const rows = (data ?? []) as AdminReport[];
+  // How many total reports exist against each target, so repeat offenders stand out.
+  const ids = [...new Set(rows.map((r) => r.target_id))];
+  const counts: Record<string, number> = {};
+  if (ids.length > 0) {
+    const { data: all } = await supabase.from("reports").select("target_id").in("target_id", ids);
+    for (const r of all ?? []) counts[r.target_id] = (counts[r.target_id] ?? 0) + 1;
+  }
+  return { rows, total: count ?? 0, pageSize, counts };
 }
+
 
 export async function resolveReport(id: string, status: "resolved" | "dismissed") {
   const { data: prev } = await supabase
