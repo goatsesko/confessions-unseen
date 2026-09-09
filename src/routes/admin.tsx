@@ -11,6 +11,7 @@ import {
   adminStats,
   deleteCommentAsAdmin,
   deleteConfession,
+  deleteMessageAsAdmin,
   fetchAdminConfessions,
   fetchAdminUsers,
   fetchAuditLogs,
