@@ -782,6 +782,25 @@ export async function fetchReportTarget(type: string, id: string) {
     const { data } = await supabase.from("comments").select("id, body, user_id, confession_id").eq("id", id).maybeSingle();
     return data ? { kind: "comment" as const, ...data } : null;
   }
+  if (type === "message") {
+    const { data } = await supabase.rpc("admin_message_context", { _id: id });
+    const row = (data ?? [])[0];
+    return row ? { kind: "message" as const, ...row } : null;
+  }
   const { data } = await supabase.from("profiles").select("id, username, banned").eq("id", id).maybeSingle();
   return data ? { kind: "user" as const, ...data } : null;
+}
+
+/** Admin-only removal of a reported direct message. */
+export async function deleteMessageAsAdmin(id: string, label?: string | null) {
+  const { error } = await supabase.rpc("admin_delete_message", { _id: id });
+  if (error) throw error;
+  await logAdminAction({
+    action: "delete_message",
+    target_type: "message",
+    target_id: id,
+    target_label: label ? label.slice(0, 60) : null,
+    prev_state: { body: label ?? null },
+    new_state: { deleted: true },
+  });
 }
