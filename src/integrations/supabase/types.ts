@@ -182,29 +182,44 @@ export type Database = {
       }
       communities: {
         Row: {
+          avatar_url: string | null
+          category: string
+          cover_url: string | null
           created_at: string
+          created_by: string | null
           description: string
           emoji: string
           id: string
           name: string
+          privacy: string
           rules: string[]
           slug: string
         }
         Insert: {
+          avatar_url?: string | null
+          category?: string
+          cover_url?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string
           emoji?: string
           id?: string
           name: string
+          privacy?: string
           rules?: string[]
           slug: string
         }
         Update: {
+          avatar_url?: string | null
+          category?: string
+          cover_url?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string
           emoji?: string
           id?: string
           name?: string
+          privacy?: string
           rules?: string[]
           slug?: string
         }
