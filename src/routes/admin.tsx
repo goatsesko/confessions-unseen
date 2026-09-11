@@ -836,3 +836,79 @@ function SkeletonList() {
 function Empty({ text }: { text: string }) {
   return <p className="py-10 text-center text-sm text-muted-foreground">{text}</p>;
 }
+
+function Pager({
+  page,
+  total,
+  pageSize,
+  onPage,
+}: {
+  page: number;
+  total: number;
+  pageSize: number;
+  onPage: (p: number) => void;
+}) {
+  const pages = Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
+  if (total <= pageSize) return null;
+  return (
+    <div className="flex items-center justify-between pt-1">
+      <button
+        disabled={page <= 1}
+        onClick={() => onPage(page - 1)}
+        className="tap rounded-full border border-border px-4 py-2 text-xs font-medium disabled:opacity-40"
+      >
+        Previous
+      </button>
+      <span className="text-[11px] text-muted-foreground">
+        Page {page} of {pages} · {total} total
+      </span>
+      <button
+        disabled={page >= pages}
+        onClick={() => onPage(page + 1)}
+        className="tap rounded-full border border-border px-4 py-2 text-xs font-medium disabled:opacity-40"
+      >
+        Next
+      </button>
+    </div>
+  );
+}
+
+function Confirm({
+  open,
+  title,
+  body,
+  confirmLabel,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  title: string;
+  body: string;
+  confirmLabel: string;
+  busy?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4">
+      <div className="surface w-full max-w-sm space-y-3 rounded-t-3xl p-5 sm:rounded-3xl">
+        <h2 className="font-display text-base font-bold">{title}</h2>
+        <p className="text-sm text-muted-foreground">{body}</p>
+        <div className="flex gap-2 pt-1">
+          <button onClick={onCancel} className="tap h-11 flex-1 rounded-full border border-border text-sm">
+            Cancel
+          </button>
+          <button
+            disabled={busy}
+            onClick={onConfirm}
+            className="tap h-11 flex-1 rounded-full bg-destructive text-sm font-bold text-destructive-foreground disabled:opacity-50"
+          >
+            {busy ? "Working…" : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
