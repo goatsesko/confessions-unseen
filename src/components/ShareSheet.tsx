@@ -57,7 +57,7 @@ export async function renderConfessionImage(number: number, body: string, catego
   ctx.textAlign = "right";
   ctx.fillStyle = BRAND_PINK;
   ctx.font = "900 italic 28px Arial, sans-serif";
-  ctx.fillText("COMRADES CONFESSIONS", W - side, brandTop + 30);
+  ctx.fillText("WHISPR", W - side, brandTop + 30);
   ctx.textAlign = "left";
 
   // Hard pink edge: no gradient, glow, frame, or formal empty margins.
@@ -133,7 +133,7 @@ export function ShareSheet({
   if (!mounted) return null;
 
   const url = `${window.location.origin}/confession/${number}`;
-  const text = `Confession ${formatConfessionId(number)} — Comrades Confessions`;
+  const text = `Confession ${formatConfessionId(number)} — Whispr`;
 
   const targets = [
     { label: "WhatsApp", href: `https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}` },

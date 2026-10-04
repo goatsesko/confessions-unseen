@@ -13,12 +13,12 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/u/$username")({
   head: ({ params }) => ({
     meta: [
-      { title: `@${params.username} — Comrades Confessions` },
+      { title: `@${params.username} — Whispr` },
       {
         name: "description",
         content: `See @${params.username}'s comrade profile and start a private chat. Confessions always stay anonymous.`,
       },
-      { property: "og:title", content: `@${params.username} — Comrades Confessions` },
+      { property: "og:title", content: `@${params.username} — Whispr` },
       { property: "og:description", content: `Comrade profile for @${params.username}.` },
       { property: "og:type", content: "profile" },
       { name: "twitter:card", content: "summary" },

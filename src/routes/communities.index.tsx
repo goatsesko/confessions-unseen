@@ -13,9 +13,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/communities/")({
   head: () => ({
     meta: [
-      { title: "Communities — Comrades Confessions" },
+      { title: "Communities — Whispr" },
       { name: "description", content: "Join communities for relationships, campus, work, mental health and more." },
-      { property: "og:title", content: "Communities — Comrades Confessions" },
+      { property: "og:title", content: "Communities — Whispr" },
       { property: "og:description", content: "Find the people who get it. Join a confession community." },
     ],
   }),

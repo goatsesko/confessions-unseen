@@ -30,9 +30,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
-      { title: "Moderation Dashboard — Comrades Confessions" },
+      { title: "Moderation Dashboard — Whispr" },
       { name: "description", content: "Review reports, moderate confessions and manage members." },
-      { property: "og:title", content: "Moderation Dashboard — Comrades Confessions" },
+      { property: "og:title", content: "Moderation Dashboard — Whispr" },
       { property: "og:description", content: "Review reports, moderate confessions and manage members." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -78,7 +78,7 @@ function AdminPage() {
           <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-primary" />
           <h1 className="font-display text-lg font-extrabold">Moderators only</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            This dashboard is restricted to the Comrades Confessions moderation team.
+            This dashboard is restricted to the Whispr moderation team.
           </p>
           <Link to="/" className="tap mt-5 inline-block rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground">
             Back to feed

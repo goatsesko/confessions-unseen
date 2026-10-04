@@ -23,9 +23,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/inbox")({
   head: () => ({
     meta: [
-      { title: "Inbox — Comrades Confessions" },
+      { title: "Inbox — Whispr" },
       { name: "description", content: "Private real-time chats with the comrades you connect with. Usernames only." },
-      { property: "og:title", content: "Inbox — Comrades Confessions" },
+      { property: "og:title", content: "Inbox — Whispr" },
       { property: "og:description", content: "Private real-time chats between comrades." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

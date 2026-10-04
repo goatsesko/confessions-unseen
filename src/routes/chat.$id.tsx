@@ -60,9 +60,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/chat/$id")({
   head: () => ({
     meta: [
-      { title: "Chat — Comrades Confessions" },
+      { title: "Chat — Whispr" },
       { name: "description", content: "A private, real-time conversation with a comrade. Usernames only." },
-      { property: "og:title", content: "Chat — Comrades Confessions" },
+      { property: "og:title", content: "Chat — Whispr" },
       { property: "og:description", content: "Private real-time messaging between comrades." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

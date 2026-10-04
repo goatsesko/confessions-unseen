@@ -12,13 +12,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Comrades Confessions — Speak freely. Stay anonymous." },
+      { title: "Whispr — Speak freely. Stay anonymous." },
       {
         name: "description",
         content:
           "Anonymous confessions with real conversation. Every confession gets a number so you can add to it, thread it and follow the story.",
       },
-      { property: "og:title", content: "Comrades Confessions" },
+      { property: "og:title", content: "Whispr" },
       { property: "og:description", content: "Speak freely. Stay anonymous. Every confession has a number." },
     ],
   }),
