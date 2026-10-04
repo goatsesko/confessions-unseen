@@ -10,9 +10,9 @@ import { fetchCommunities, fetchConfession, fetchFeed, searchUsers } from "@/lib
 export const Route = createFileRoute("/search")({
   head: () => ({
     meta: [
-      { title: "Search — Comrades Confessions" },
+      { title: "Search — Whispr" },
       { name: "description", content: "Search anonymous confessions, communities and categories." },
-      { property: "og:title", content: "Search — Comrades Confessions" },
+      { property: "og:title", content: "Search — Whispr" },
       { property: "og:description", content: "Find confessions, communities and categories." },
     ],
   }),

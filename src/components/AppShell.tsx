@@ -18,12 +18,10 @@ export function TopBar({ title }: { title?: ReactNode }) {
     <header className="glass sticky top-0 z-40 border-b border-border">
       <div className="mx-auto flex h-14 max-w-2xl items-center gap-3 px-4">
         <Link to="/" className="tap flex items-center gap-2">
-          <img src={logo} alt="Comrades Confessions" className="h-7 w-7" />
+          <img src={logo} alt="Whispr" className="h-7 w-7" />
           {title ?? (
-            <span className="font-display text-[13px] font-extrabold leading-3 tracking-tight">
-              COMRADES
-              <br />
-              <span className="text-primary">CONFESSIONS</span>
+            <span className="font-display text-[13px] font-extrabold text-lg leading-none tracking-tight">
+              WHISP<span className="text-primary">R</span>
             </span>
           )}
         </Link>

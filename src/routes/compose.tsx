@@ -20,7 +20,7 @@ export const Route = createFileRoute("/compose")({
   }),
   head: () => ({
     meta: [
-      { title: "Post anonymously — Comrades Confessions" },
+      { title: "Post anonymously — Whispr" },
       { name: "description", content: "Write your confession. No name, no account, no trace." },
       { property: "og:title", content: "Post anonymously" },
       { property: "og:description", content: "Write your confession. No name, no account, no trace." },

@@ -10,9 +10,9 @@ import { useAuth } from "@/hooks/useAuth";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in — Comrades Confessions" },
+      { title: "Sign in — Whispr" },
       { name: "description", content: "Sign in with Google to comment, join communities and message comrades." },
-      { property: "og:title", content: "Sign in — Comrades Confessions" },
+      { property: "og:title", content: "Sign in — Whispr" },
       { property: "og:description", content: "Your email stays private forever." },
     ],
   }),
@@ -74,11 +74,9 @@ function AuthPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
-      <img src={logo} alt="Comrades Confessions" width={512} height={512} className="mb-4 h-20 w-20" />
+      <img src={logo} alt="Whispr" width={512} height={512} className="mb-4 h-20 w-20" />
       <h1 className="font-display text-3xl font-extrabold leading-none">
-        COMRADES
-        <br />
-        <span className="text-primary">CONFESSIONS</span>
+        WHISP<span className="text-primary">R</span>
       </h1>
       <p className="mt-3 text-sm text-muted-foreground">Speak freely. Stay anonymous.</p>
 

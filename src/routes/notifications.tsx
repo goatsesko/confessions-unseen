@@ -12,9 +12,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/notifications")({
   head: () => ({
     meta: [
-      { title: "Notifications — Comrades Confessions" },
+      { title: "Notifications — Whispr" },
       { name: "description", content: "Replies, mentions, likes, follows and community announcements." },
-      { property: "og:title", content: "Notifications — Comrades Confessions" },
+      { property: "og:title", content: "Notifications — Whispr" },
       { property: "og:description", content: "Replies, mentions and community announcements." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

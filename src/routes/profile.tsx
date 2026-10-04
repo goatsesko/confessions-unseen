@@ -14,12 +14,12 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "Your profile — Comrades Confessions" },
+      { title: "Your profile — Whispr" },
       {
         name: "description",
         content: "Your comrade profile: photo, bio, town, followers, reputation, communities and comments.",
       },
-      { property: "og:title", content: "Your profile — Comrades Confessions" },
+      { property: "og:title", content: "Your profile — Whispr" },
       { property: "og:description", content: "Your comrade profile. Confessions are never linked to you." },
       { property: "og:type", content: "profile" },
       { name: "twitter:card", content: "summary" },

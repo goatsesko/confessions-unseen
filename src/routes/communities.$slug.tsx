@@ -9,9 +9,9 @@ import { formatCount } from "@/lib/confessions";
 export const Route = createFileRoute("/communities/$slug")({
   head: ({ params }) => ({
     meta: [
-      { title: `${params.slug.replace(/-/g, " ")} community — Comrades Confessions` },
+      { title: `${params.slug.replace(/-/g, " ")} community — Whispr` },
       { name: "description", content: `Anonymous confessions from the ${params.slug.replace(/-/g, " ")} community.` },
-      { property: "og:title", content: `${params.slug.replace(/-/g, " ")} — Comrades Confessions` },
+      { property: "og:title", content: `${params.slug.replace(/-/g, " ")} — Whispr` },
       { property: "og:description", content: "Anonymous confessions from this community." },
     ],
   }),

@@ -13,10 +13,10 @@ import { formatConfessionId, formatCount, timeAgo } from "@/lib/confessions";
 export const Route = createFileRoute("/confession/$number")({
   head: ({ params }) => ({
     meta: [
-      { title: `Confession #${params.number} — Comrades Confessions` },
+      { title: `Confession #${params.number} — Whispr` },
       { name: "description", content: `Read anonymous confession #${params.number} and join the conversation.` },
       { property: "og:title", content: `Confession #${params.number}` },
-      { property: "og:description", content: "Anonymous confession on Comrades Confessions." },
+      { property: "og:description", content: "Anonymous confession on Whispr." },
     ],
   }),
   component: ConfessionDetail,

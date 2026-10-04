@@ -13,12 +13,12 @@ import { updateProfile, uploadImage } from "@/lib/messages";
 export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — Comrades Confessions" },
+      { title: "Settings — Whispr" },
       {
         name: "description",
         content: "Private settings: your photo, bio, town, who can message you, online status and read receipts.",
       },
-      { property: "og:title", content: "Settings — Comrades Confessions" },
+      { property: "og:title", content: "Settings — Whispr" },
       { property: "og:description", content: "Manage your comrade account privately. Confessions stay anonymous." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
