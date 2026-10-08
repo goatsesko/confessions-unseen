@@ -75,13 +75,20 @@ export async function notify(input: {
   link: string | null;
 }) {
   if (!input.actorId || input.userId === input.actorId) return;
-  await supabase.from("notifications").insert({
+  const id = crypto.randomUUID();
+  const { error } = await supabase.from("notifications").insert({
+    id,
     user_id: input.userId,
     actor_id: input.actorId,
     kind: input.kind,
     body: input.body,
     link: input.link,
   });
+  if (!error) {
+    import("@/lib/push.functions")
+      .then(({ sendPushForNotification }) => sendPushForNotification({ data: { notificationId: id } }))
+      .catch(() => {});
+  }
 }
 
 export async function fetchNotifications(userId: string): Promise<AppNotification[]> {
