@@ -11,8 +11,8 @@ export const sendPushForNotification = createServerFn({ method: "POST" })
     return d;
   })
   .handler(async ({ data, context }) => {
-    const lovableKey = process.env.LOVABLE_API_KEY;
-    const fcmKey = process.env.FIREBASE_MESSAGING_API_KEY;
+    const lovableKey = process.env["LOVABLE_API_KEY"];
+    const fcmKey = process.env["FIREBASE_MESSAGING_API_KEY"];
     if (!lovableKey || !fcmKey) return { sent: 0 };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: n } = await supabaseAdmin
