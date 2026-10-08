@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { timeAgo } from "@/lib/confessions";
 import { fetchNotifications, markNotificationsRead } from "@/lib/social";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/notifications")({
   head: () => ({
@@ -83,7 +84,23 @@ function NotificationsPage() {
 
   return (
     <AppShell>
-      <h1 className="mb-4 font-display text-xl font-extrabold">Notifications</h1>
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <h1 className="font-display text-xl font-extrabold">Notifications</h1>
+        <button
+          onClick={async () => {
+            try {
+              const { enablePush, PUSH_MESSAGES } = await import("@/lib/push");
+              const r = await enablePush(user.id);
+              (r.status === "registered" ? toast.success : toast.error)(PUSH_MESSAGES[r.status]);
+            } catch {
+              toast.error("Couldn't turn on notifications. Try again.");
+            }
+          }}
+          className="tap rounded-full border border-primary/50 px-3 py-1.5 text-xs font-bold text-primary"
+        >
+          Turn on push
+        </button>
+      </div>
       {notifications.isLoading ? (
         <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
       ) : rows.length === 0 ? (

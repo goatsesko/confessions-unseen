@@ -75,20 +75,18 @@ export async function notify(input: {
   link: string | null;
 }) {
   if (!input.actorId || input.userId === input.actorId) return;
-  const { data } = await supabase
-    .from("notifications")
-    .insert({
-      user_id: input.userId,
-      actor_id: input.actorId,
-      kind: input.kind,
-      body: input.body,
-      link: input.link,
-    })
-    .select("id")
-    .maybeSingle();
-  if (data?.id) {
+  const id = crypto.randomUUID();
+  const { error } = await supabase.from("notifications").insert({
+    id,
+    user_id: input.userId,
+    actor_id: input.actorId,
+    kind: input.kind,
+    body: input.body,
+    link: input.link,
+  });
+  if (!error) {
     import("@/lib/push.functions")
-      .then(({ sendPushForNotification }) => sendPushForNotification({ data: { notificationId: data.id } }))
+      .then(({ sendPushForNotification }) => sendPushForNotification({ data: { notificationId: id } }))
       .catch(() => {});
   }
 }
