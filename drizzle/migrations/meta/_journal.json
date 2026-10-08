@@ -29,6 +29,13 @@
       "when": 1791443190483,
       "tag": "0003_push_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791443520642,
+      "tag": "0004_notification_prefs",
+      "breakpoints": true
     }
   ]
 }

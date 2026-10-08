@@ -518,6 +518,36 @@ export type Database = {
           },
         ]
       }
+      notification_prefs: {
+        Row: {
+          kinds: string[]
+          quiet_enabled: boolean
+          quiet_end: number
+          quiet_start: number
+          tz_offset_min: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          kinds?: string[]
+          quiet_enabled?: boolean
+          quiet_end?: number
+          quiet_start?: number
+          tz_offset_min?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          kinds?: string[]
+          quiet_enabled?: boolean
+          quiet_end?: number
+          quiet_start?: number
+          tz_offset_min?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           actor_id: string | null
