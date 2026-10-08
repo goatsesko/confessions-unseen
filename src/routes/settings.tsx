@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { CALL_COMING_SOON } from "@/lib/calls";
 import { updateProfile, uploadImage } from "@/lib/messages";
+import { NotificationSettings } from "@/components/NotificationSettings";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -232,6 +233,8 @@ function SettingsPage() {
           {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save changes"}
         </button>
       </section>
+
+      {user && <NotificationSettings userId={user.id} />}
 
       <section className="surface mt-4 divide-y divide-border p-1">
         <button

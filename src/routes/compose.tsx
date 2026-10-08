@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { CATEGORIES, extractParentNumber, maskIdentifiers } from "@/lib/confessions";
 import { createConfession, fetchCommunities } from "@/lib/api";
 import { checkContent, hasBlockingIssue, isDuplicate, rateLimit } from "@/lib/moderation";
+import { PrivacyCheck } from "@/components/PrivacyCheck";
 import { cn } from "@/lib/utils";
 
 type ComposeSearch = { addTo?: number | undefined };
@@ -127,6 +128,7 @@ function Compose() {
           className="min-h-52 w-full resize-none bg-transparent font-display text-xl font-semibold leading-snug outline-none placeholder:text-muted-foreground/60"
         />
         <div className="mb-3 text-right text-xs text-muted-foreground">{body.length}/5000</div>
+        <PrivacyCheck text={body} onApply={setBody} />
 
         {issues.length > 0 && (
           <div className="mb-6 space-y-2" role="status">
