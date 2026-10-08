@@ -21,6 +21,21 @@ export const sendPushForNotification = createServerFn({ method: "POST" })
       .eq("id", data.notificationId)
       .maybeSingle();
     if (!n || n.actor_id !== context.userId) return { sent: 0 };
+    const { data: prefs } = await supabaseAdmin
+      .from("notification_prefs")
+      .select("kinds, quiet_enabled, quiet_start, quiet_end, tz_offset_min")
+      .eq("user_id", n.user_id)
+      .maybeSingle();
+    if (prefs) {
+      if (!prefs.kinds.includes(n.kind)) return { sent: 0 };
+      if (prefs.quiet_enabled && prefs.quiet_start !== prefs.quiet_end) {
+        const now = new Date();
+        const h = Math.floor((((now.getUTCHours() * 60 + now.getUTCMinutes() + prefs.tz_offset_min) % 1440) + 1440) % 1440 / 60);
+        const s = prefs.quiet_start, e = prefs.quiet_end;
+        const quiet = s < e ? h >= s && h < e : h >= s || h < e;
+        if (quiet) return { sent: 0 };
+      }
+    }
     const { data: actor } = await supabaseAdmin.from("profiles").select("username").eq("id", n.actor_id).maybeSingle();
     const { data: tokens } = await supabaseAdmin.from("push_tokens").select("token").eq("user_id", n.user_id);
     let sent = 0;
